@@ -1,0 +1,98 @@
+---
+title: How Google Blocks Older Devices
+description: 'Understanding how Google intentionally blocks Gen 1 & Gen 2 Nest Thermostats'
+---
+
+## The Problem
+
+Google/Nest is intentionally blocking older Generation 1 and Generation 2 thermostats from accessing their API servers, even though these devices are **fully functional and use the exact same API structure as newer models**.
+
+<iframe
+  width="100%"
+  height="400"
+  src="https://www.youtube.com/embed/riE6-z97DaQ"
+  title="How Google Blocks Nest Gen 1 & Gen 2 Devices"
+  frameborder="0"
+  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+  allowfullscreen
+></iframe>
+
+## How the Blocking Works
+
+Google's blocking mechanism is surprisingly simple and arbitrary. When a Nest device connects to their API, it sends a model identifier (e.g., `Display-2.8` for Gen 2, `Display-3.7` for Gen 3). Based solely on this identifier, Google's servers return different responses:
+
+### Gen 1 & Gen 2 Response (Blocked)
+
+```json
+{
+    "czfe_url": "",
+    "server_version": "9.45.0.63171-20251016-edb6514",
+    "ping_url": "",
+    "passphrase_url": "",
+    "pro_info_url": "",
+    "transport_url": "",
+    "tier_name": "production",
+    "weather_url": "https://weather.nest.com/weather/v1?query=",
+    "upload_url": "https://logsink.devices.nest.com/upload",
+    "direct_transport_url": ""
+}
+```
+
+Notice how all the critical URLs (`czfe_url`, `ping_url`, `passphrase_url`, `transport_url`) are **empty strings**. Without these URLs, the thermostat cannot communicate with the API to function properly.
+
+### Gen 3 Response (Working)
+
+```json
+{
+    "czfe_url": "https://czfe14-front01-iad01.transport.home.nest.com:9543",
+    "server_version": "9.45.0.63171-20251016-edb6514",
+    "ping_url": "https://czfe14-front01-iad01.transport.home.nest.com:9543",
+    "passphrase_url": "https://squeakydoor.nest.com/device/passphrase",
+    "pro_info_url": "https://squeakydoor.nest.com/pro-info",
+    "transport_url": "https://czfe14-front01-iad01.transport.home.nest.com:9543",
+    "tier_name": "production",
+    "weather_url": "https://weather.nest.com/weather/v1?query=",
+    "upload_url": "https://logsink.devices.nest.com/upload",
+    "direct_transport_url": "https://czfe14-front01-iad01.transport.home.nest.com:9543"
+}
+```
+
+When the model is changed from `Display-2.8` to `Display-3.7`, **all the URLs magically appear**. The API structure is identical, the protocol is the same, and the hardware is capable - Google is simply blocking older devices by checking the model string.
+
+## Key Findings
+
+<CardGroup cols={2}>
+  <Card title="Identical API Structure" icon="code">
+    Gen 1, Gen 2, and Gen 3 devices use the **exact same API endpoints and protocol**. There are no technical differences in how they communicate.
+  </Card>
+  <Card title="Arbitrary Blocking" icon="ban">
+    Google blocks devices based **solely on the model identifier**, not on any actual technical limitation or incompatibility.
+  </Card>
+  <Card title="Telemetry Still Works" icon="upload">
+    Interestingly, the `upload_url` for logging is **still provided** to blocked devices. Google continues collecting telemetry data from Gen 1 & Gen 2 devices even while blocking their core functionality.
+  </Card>
+  <Card title="Planned Obsolescence" icon="trash">
+    This is a clear case of **artificial obsolescence** - perfectly functional hardware being intentionally disabled to push users toward newer products.
+  </Card>
+</CardGroup>
+
+## Why No Longer Evil Exists
+
+<Warning>
+  This blocking behavior is why **No Longer Evil exists**. We believe you should have the right to continue using hardware you own, especially when it's fully functional and Google is blocking it through artificial software restrictions.
+</Warning>
+
+## What Can You Do?
+
+<CardGroup cols={2}>
+  <Card title="Check Compatibility" icon="circle-check" href="/compatibility">
+    Verify your Nest Thermostat generation and learn how to identify your device
+  </Card>
+  <Card title="Get Started" icon="rocket" href="/choose-your-path">
+    Choose between hosted service (easy) or self-hosted (advanced) setup
+  </Card>
+</CardGroup>
+
+<Info>
+  **Questions?** Join our [Discord community](https://discord.gg/AffeGaJ5XS) or check out the [FAQ](/support/faq) for more information.
+</Info>

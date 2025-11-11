@@ -45,6 +45,7 @@
       "group": "Get Started",
       "pages": [
         "introduction",
+        "why-google-blocks",
         "compatibility",
         "choose-your-path"
       ]
