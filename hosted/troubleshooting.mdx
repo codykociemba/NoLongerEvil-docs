@@ -1,0 +1,410 @@
+---
+title: Troubleshooting
+description: 'Solutions to common issues with hosted service setup'
+---
+
+## DFU Mode Issues
+
+<AccordionGroup>
+  <Accordion title="Device won't enter DFU mode" icon="usb">
+    **Symptoms**: Holding display doesn't trigger installer detection
+
+    **Solutions**:
+    1. **Charge the battery**: DFU mode requires sufficient power (>50%)
+       - Check: Settings → Technical Info → Battery
+       - Charge on wall mount for 1-2 hours if low
+
+    2. **Try a different hold duration**:
+       - Some devices need 10 seconds, others 15
+       - Try holding for 20 seconds to be safe
+
+    3. **Ensure installer is running FIRST**:
+       - Start the installer app BEFORE rebooting
+       - Wait for "Waiting for device..." message
+
+    4. **Try a different USB cable**:
+       - Some cables are charging-only (no data pins)
+       - Use a cable that works for file transfer
+
+    5. **Try a different USB port**:
+       - Some ports don't provide enough power
+       - Try a USB 2.0 port instead of USB 3.0
+  </Accordion>
+
+  <Accordion title="Device reboots but installer doesn't detect it" icon="computer">
+    **Symptoms**: Thermostat reboots but installer still says "Waiting..."
+
+    **Solutions**:
+    1. **Check USB drivers** (Windows):
+       - Device Manager → Universal Serial Bus devices
+       - Look for "OMAP" or unknown devices
+       - Install OMAP drivers if needed
+
+    2. **Grant USB permissions** (macOS):
+       - System Preferences → Security & Privacy
+       - Allow NoLongerEvil app USB access
+
+    3. **Run with sudo** (Linux):
+       ```bash
+       sudo ./NoLongerEvil.AppImage
+       ```
+
+    4. **Add udev rules** (Linux):
+       ```bash
+       echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="0451", MODE="0666"' | sudo tee /etc/udev/rules.d/99-omap.rules
+       sudo udevadm control --reload-rules
+       ```
+
+    5. **Try a different computer**:
+       - Some computers have USB compatibility issues
+       - Try a different OS if possible
+  </Accordion>
+
+  <Accordion title="Multiple DFU attempts fail" icon="rotate">
+    **Symptoms**: Device enters DFU but flashing fails repeatedly
+
+    **Solutions**:
+    1. **Let device fully boot first**:
+       - After failed attempt, let device boot completely
+       - Wait 5 minutes
+       - Try DFU mode again
+
+    2. **Check USB connection stability**:
+       - Wiggle cable to check for loose connection
+       - Try a different cable and port
+
+    3. **Close other USB software**:
+       - Close iTunes, Android tools, other device managers
+       - These can interfere with USB communication
+
+    4. **Restart computer**:
+       - Sometimes USB stack gets stuck
+       - Fresh boot can resolve issues
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Device Detection
+
+<AccordionGroup>
+  <Accordion title="Installer says 'Device not found'" icon="magnifying-glass">
+    **Check these in order**:
+
+    1. **USB cable is data-capable**
+       - Test cable with phone file transfer
+       - If phone only charges, cable is power-only
+
+    2. **Device is actually in DFU mode**
+       - Screen should be blank or flickering
+       - Normal boot screen means DFU wasn't entered
+
+    3. **USB port has power**
+       - Try different ports
+       - Desktop back panel ports often more reliable than front
+
+    4. **OS permissions**:
+       - **macOS**: Security & Privacy → allow USB
+       - **Linux**: Run with sudo or add udev rules
+       - **Windows**: Check Device Manager for unknown devices
+  </Accordion>
+
+  <Accordion title="Device appears then disappears" icon="eye-slash">
+    **Symptoms**: Installer briefly detects device then loses connection
+
+    **Causes**:
+    - Loose USB connection
+    - Insufficient power
+    - USB cable failure
+
+    **Solutions**:
+    1. Use high-quality, short USB cable
+    2. Connect to computer directly (not through hub)
+    3. Try different USB port
+    4. Check for bent pins in USB connector
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Flashing Issues
+
+<AccordionGroup>
+  <Accordion title="Flashing fails partway through" icon="exclamation-triangle">
+    **Symptoms**: Progress bar stops, error message appears
+
+    **Solutions**:
+    1. **Don't move the device**:
+       - Keep thermostat and cable perfectly still during flashing
+       - Even small movements can interrupt USB connection
+
+    2. **Check free disk space**:
+       - Ensure computer has >1GB free space
+       - Firmware files are extracted temporarily
+
+    3. **Disable antivirus temporarily**:
+       - Some antivirus software blocks low-level USB access
+       - Whitelist NoLongerEvil installer
+
+    4. **Run installer as administrator** (Windows):
+       - Right-click → Run as administrator
+
+    5. **Download fresh firmware**:
+       - Corrupt download can cause failures
+       - Delete and redownload installer
+  </Accordion>
+
+  <Accordion title="Verification failed error" icon="xmark-circle">
+    **Symptoms**: "Firmware verification failed" after flashing
+
+    **Causes**:
+    - Corrupted firmware files
+    - USB communication error
+    - Device memory issues
+
+    **Solutions**:
+    1. Try flashing again (sometimes works on 2nd attempt)
+    2. Download fresh installer
+    3. Try different computer
+    4. If persistent, device may have hardware issues
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Boot Issues
+
+<AccordionGroup>
+  <Accordion title="Device won't boot after flashing" icon="power-off">
+    **Symptoms**: Screen stays blank after firmware flash
+
+    **Don't panic!** Try these:
+
+    1. **Wait longer**:
+       - First boot takes 3-4 minutes
+       - Leave plugged in via USB for 5+ minutes
+
+    2. **Try power cycle**:
+       - Unplug USB
+       - Hold display for 10 seconds (power off)
+       - Reconnect USB
+       - Wait for boot
+
+    3. **Reflash firmware**:
+       - Enter DFU mode again
+       - Reflash with installer
+       - Multiple flashes sometimes needed
+
+    4. **Check for signs of life**:
+       - Screen backlight flickers (good sign)
+       - Device gets slightly warm (CPU active)
+
+    <Warning>
+      If device is completely unresponsive after multiple reflash attempts and no backlight activity, it may be bricked. Contact support before giving up - there may be recovery options.
+    </Warning>
+  </Accordion>
+
+  <Accordion title="Device boots but shows error messages" icon="triangle-exclamation">
+    **Symptoms**: Boot text with errors, or boot loop
+
+    **Solutions**:
+    1. Let it fully boot - errors may be non-critical
+    2. If boot loop persists:
+       - Enter DFU mode
+       - Reflash firmware
+    3. Take photo of error messages and post to Discord/GitHub
+  </Accordion>
+
+  <Accordion title="NoLongerEvil logo doesn't appear" icon="image">
+    **Symptoms**: Device boots but no custom logo
+
+    This is **not critical** - the firmware may still work:
+
+    1. Check if device has network connectivity
+    2. Try generating an entry code
+    3. If entry code works, firmware is installed correctly
+       - Logo may not display due to screen driver differences
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Entry Code Issues
+
+<AccordionGroup>
+  <Accordion title="'Get Entry Code' option missing" icon="question">
+    **Symptoms**: Can't find Settings → Nest App → Get Entry Code
+
+    **Causes**:
+    - Firmware didn't flash correctly
+    - Looking in wrong menu
+
+    **Solutions**:
+    1. **Check correct path**:
+       - Settings → **Nest App** → Get Entry Code
+       - Not Settings → App Info
+
+    2. **Verify firmware installed**:
+       - Check if NoLongerEvil logo showed on boot
+       - Settings → Technical Info → look for modified fields
+
+    3. **Reflash if needed**:
+       - If firmware not installed, reflash
+       - Follow installation guide from Step 1
+  </Accordion>
+
+  <Accordion title="Entry code shows but doesn't work" icon="key">
+    **Symptoms**: Dashboard says "Invalid code" or "Expired"
+
+    **Solutions**:
+    1. **Check code carefully**:
+       - Entry codes are case-sensitive
+       - Common mistakes: 0/O, 1/I/L, 2/Z, 5/S
+
+    2. **Check expiration**:
+       - Codes expire after 1 hour
+       - Generate a fresh code
+
+    3. **Verify device is online**:
+       - Settings → Network
+       - Ensure WiFi connected
+       - Check for internet access
+
+    4. **Check firewall**:
+       - Device needs to reach backdoor.nolongerevil.com:443
+       - Corporate/school networks may block
+
+    5. **Try different network**:
+       - Connect device to phone hotspot temporarily
+       - If works, network is the issue
+  </Accordion>
+
+  <Accordion title="Entry code already used" icon="ban">
+    **Symptoms**: "This code has already been claimed"
+
+    **Cause**: Entry codes are single-use
+
+    **Solution**: Generate a new entry code
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Network Issues
+
+<AccordionGroup>
+  <Accordion title="Device won't connect to WiFi" icon="wifi">
+    **Symptoms**: Can't join network or shows "No connection"
+
+    **Solutions**:
+    1. **Check WiFi password**:
+       - Re-enter carefully (case-sensitive)
+       - Use guest network if available (simpler password)
+
+    2. **Check WiFi band**:
+       - Nest Gen 2 only supports 2.4 GHz
+       - Disable 5 GHz or separate networks
+
+    3. **Move closer to router**:
+       - Weak signal can prevent connection
+       - Check signal strength: Settings → Network
+
+    4. **Restart router**:
+       - Sometimes helps with DHCP issues
+
+    5. **Check MAC filtering**:
+       - If router has MAC filtering, add thermostat MAC
+       - Find MAC: Settings → Technical Info
+  </Accordion>
+
+  <Accordion title="Device connected to WiFi but shows offline" icon="wifi-slash">
+    **Symptoms**: WiFi connected but dashboard says "Offline"
+
+    **Causes**:
+    - Firewall blocking port 443
+    - DNS issues
+    - Network blocking HTTPS to unknown servers
+
+    **Solutions**:
+    1. **Check firewall**:
+       - Allow outbound HTTPS (port 443)
+       - Whitelist backdoor.nolongerevil.com
+
+    2. **Test DNS resolution**:
+       - On another device, ping backdoor.nolongerevil.com
+       - If fails, DNS issue
+
+    3. **Try different network**:
+       - Use phone hotspot to isolate issue
+       - If works on hotspot, network is blocking
+
+    4. **Check for captive portal**:
+       - Some networks require browser login
+       - Connect different device first, then thermostat
+
+    5. **Contact network admin**:
+       - Corporate/school networks often restrictive
+       - May need whitelist exception
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Dashboard Issues
+
+<AccordionGroup>
+  <Accordion title="Device shows offline but thermostat works" icon="plug-circle-xmark">
+    **Symptoms**: Thermostat controls HVAC but dashboard shows offline
+
+    **Likely cause**: Thermostat can't reach NoLongerEvil servers
+
+    **Solutions**:
+    - See [Network Issues](#network-issues) above
+    - Check router firewall rules
+    - Verify internet connectivity on thermostat
+  </Accordion>
+
+  <Accordion title="Temperature changes don't sync" icon="sync">
+    **Symptoms**: Changes on dashboard don't reflect on device (or vice versa)
+
+    **Solutions**:
+    1. **Check connection status**: Device must show "Connected"
+    2. **Refresh dashboard**: Hard refresh (Ctrl+F5 / Cmd+Shift+R)
+    3. **Wait up to 30 seconds**: Long-polling interval
+    4. **Check for errors**: Browser console (F12) for JavaScript errors
+  </Accordion>
+
+  <Accordion title="Dashboard loads but no devices show" icon="box-open">
+    **Symptoms**: Logged in but device list is empty
+
+    **Solutions**:
+    1. **Verify device was claimed**:
+       - Check for "Device linked successfully" message
+       - Try claiming again with new entry code
+
+    2. **Refresh page**: Sometimes takes a moment to populate
+
+    3. **Check browser console**:
+       - F12 → Console tab
+       - Look for API errors
+
+    4. **Try different browser**: Test in incognito/private mode
+
+    5. **Clear cache**: Cookies/cache corruption can cause issues
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Still Need Help?
+
+If none of these solutions work:
+
+<CardGroup cols={2}>
+  <Card title="Discord Community" icon="discord" href="https://discord.gg/AffeGaJ5XS">
+    Ask the community - often fastest help
+  </Card>
+  <Card title="GitHub Issues" icon="github" href="https://github.com/codykociemba/NoLongerEvil-Thermostat/issues">
+    Report bugs or request features
+  </Card>
+</CardGroup>

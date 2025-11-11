@@ -1,0 +1,206 @@
+---
+title: API Introduction
+description: 'Overview of the No Longer Evil API architecture'
+---
+
+## Overview
+
+The No Longer Evil API server provides two distinct APIs on different ports:
+
+<CardGroup cols={2}>
+  <Card title="Thermostat Communication API" icon="temperature-half">
+    **Port 443 (HTTPS)**
+
+    Handles direct communication with Nest thermostats
+  </Card>
+  <Card title="Control API" icon="tower-broadcast">
+    **Port 8081 (HTTP)**
+
+    Provides external control and status monitoring
+  </Card>
+</CardGroup>
+
+## Base URLs
+
+<CodeGroup>
+
+```bash Hosted Service
+# Thermostat Communication API
+https://backdoor.nolongerevil.com
+
+# Control API
+http://backdoor.nolongerevil.com:8081
+```
+
+```bash Self-Hosted
+# Thermostat Communication API (Replace with your domain/IP)
+https://your-domain.com
+
+# Control API
+http://your-domain.com:8081
+# or
+http://localhost:8081  # If running locally
+```
+
+</CodeGroup>
+
+## API Differences
+
+### Thermostat Communication API (Port 443)
+
+**Purpose**: Replicate Google's Nest API for thermostat compatibility
+
+**Clients**: Nest thermostat devices only
+
+**Protocol**: HTTPS with SSL/TLS
+
+**Authentication**:
+- Basic Auth with device serial number as username
+- Entry key validation for device claiming
+
+**Key Features**:
+- Device state synchronization (long-polling)
+- Weather data proxying
+- Entry key generation for device linking
+- Object-based state management
+
+<Info>
+  This API is designed to be **100% compatible** with the original Nest protocol. The thermostat believes it's talking to Google's servers.
+</Info>
+
+### Control API (Port 8081)
+
+**Purpose**: Provide external control interface for dashboards and automation
+
+**Clients**: Web frontends, mobile apps, home automation systems
+
+**Protocol**: HTTP (can be localhost-only for security)
+
+**Authentication**: Optional (add your own if exposing publicly)
+
+**Key Features**:
+- Simple command interface (set temperature, mode)
+- Device status queries
+- List all connected devices
+- Real-time status updates
+
+<Warning>
+  The Control API has **no built-in authentication** by default. If exposing publicly, implement authentication at the reverse proxy level or modify the server code.
+</Warning>
+
+## Data Format
+
+All APIs use **JSON** for request/response bodies.
+
+### Thermostat Communication API
+
+Uses Nest's proprietary object-key format:
+
+```json
+{
+  "objects": {
+    "device.SERIAL": {
+      "current_temperature": 21.5,
+      "target_temperature": 22.0,
+      "hvac_mode": "heat"
+    },
+    "shared.SERIAL": {
+      "name": "Living Room",
+      "target_temperature_high": 24.0,
+      "target_temperature_low": 18.0
+    }
+  }
+}
+```
+
+### Control API
+
+Uses simplified command format:
+
+```json
+{
+  "serial": "02AB01AC012345678",
+  "action": "temp",
+  "value": "22"
+}
+```
+
+## Rate Limits
+
+<Note>
+  **No rate limits currently enforced** on hosted service or self-hosted setups.
+
+  However, excessive requests may impact thermostat performance. Recommended limits:
+  - **Control API**: Max 10 requests/minute per device
+  - **Status queries**: Max 60 requests/minute
+</Note>
+
+## Error Handling
+
+### HTTP Status Codes
+
+| Code | Meaning | Common Causes |
+|------|---------|---------------|
+| `200` | Success | Request processed successfully |
+| `400` | Bad Request | Invalid parameters or malformed JSON |
+| `401` | Unauthorized | Invalid authentication or entry key |
+| `404` | Not Found | Device or endpoint doesn't exist |
+| `500` | Server Error | Internal server error, check logs |
+
+### Error Response Format
+
+```json
+{
+  "error": "Invalid entry key",
+  "code": "INVALID_KEY",
+  "details": "Entry key has expired or already been used"
+}
+```
+
+## Long-Polling
+
+The Thermostat Communication API uses **long-polling** for real-time updates:
+
+1. Client (thermostat) subscribes via `POST /transport` with `chunked: true`
+2. Server keeps connection open
+3. When state changes, server pushes update
+4. Client reconnects after receiving data or timeout
+
+This allows push notifications without WebSockets.
+
+## State Synchronization
+
+State is managed using a **revision-based system**:
+
+- Each object has a `$version` field
+- Clients send their current version
+- Server returns only changed objects since that version
+- Prevents unnecessary data transfer
+
+Example:
+
+```json
+{
+  "device.SERIAL": {
+    "$version": "ABCD1234",
+    "current_temperature": 21.5
+  }
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="key" href="/api-reference/authentication">
+    Learn about authentication methods
+  </Card>
+  <Card title="Thermostat API" icon="temperature-half" href="/api-reference/thermostat/entry">
+    Explore thermostat communication endpoints
+  </Card>
+  <Card title="Control API" icon="gamepad" href="/api-reference/control/command">
+    Learn to send commands and query status
+  </Card>
+  <Card title="Examples" icon="code" href="/api-reference/examples">
+    See real-world API usage examples
+  </Card>
+</CardGroup>

@@ -1,0 +1,54 @@
+---
+title: Introduction
+description: 'Take back control of your Nest Thermostat with NoLongerEvil'
+---
+
+<Warning>
+  **⚠️ EXPERIMENTAL SOFTWARE**
+
+  This project is currently in the **experimental/testing phase**. Do NOT use this firmware on any thermostat that is critical for your heating or cooling needs. Flashing this firmware may brick your device or cause unexpected behavior. Only proceed if you have a backup thermostat or can afford to have your device non-functional during testing.
+</Warning>
+
+## What is NoLongerEvil?
+
+NoLongerEvil is a right-to-repair firmware and cloud replacement for Nest Thermostats that **frees your device from Google's cloud dependency**. By flashing custom firmware, your thermostat will operate independently and connect to NoLongerEvil's platform (or your own self-hosted server), giving you complete control over your device data and settings.
+
+## How It Works
+
+The custom firmware works by intercepting the communication layer between your thermostat and Google's servers:
+
+1. **Firmware Replacement**: We flash modified bootloader and kernel components to your Nest device
+2. **Traffic Redirection**: All network traffic is redirected from Nest/Google servers to the No Longer Evil API (Hosted or Self Hosted)
+3. **API Compatibility**: Our server hosts a reverse-engineered replica of Google's API
+4. **Seamless Operation**: The thermostat believes it's communicating with official Nest infrastructure
+5. **Full Control**: You gain complete control through our web dashboard or API
+
+<Note>
+  The thermostat's existing software remains intact and functional. We only modify the network layer to break free from Google's cloud dependency while maintaining full compatibility.
+</Note>
+
+## What You Need
+
+Before getting started, make sure you have:
+
+<CardGroup cols={2}>
+  <Card title="Compatible Device" icon="temperature-half">
+    Nest Generation 2 Thermostat
+    (Gen 2 & 3 In Development)
+  </Card>
+  <Card title="Computer" icon="laptop">
+    Linux or macOS for firmware flashing
+  </Card>
+  <Card title="USB Cable" icon="usb">
+    Micro USB cable to connect thermostat to computer
+  </Card>
+  <Card title="Internet Connection" icon="wifi">
+    For downloading firmware and accessing the dashboard
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<Card title="Check Compatibility" icon="circle-check" href="/compatibility">
+  Verify your Nest Thermostat is Generation 2 and learn how to identify your device
+</Card>

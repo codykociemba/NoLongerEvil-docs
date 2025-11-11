@@ -1,0 +1,111 @@
+---
+title: Frequently Asked Questions
+description: 'Common questions about No Longer Evil'
+---
+
+## General Questions
+
+<AccordionGroup>
+  <Accordion title="Is this legal?" icon="gavel">
+    **Yes.** You own your thermostat and have the right to modify its software under right-to-repair principles.
+  </Accordion>
+
+  <Accordion title="Will this void my warranty?" icon="file-contract">
+    **Possibly.** Flashing custom firmware may void Google/Nest's warranty.
+
+    However, if your device is out of warranty or Google has discontinued support, this doesn't matter.
+  </Accordion>
+
+  <Accordion title="Can I go back to Google's servers?" icon="rotate-left">
+    **Yes.** You can reflash the original Nest firmware to restore factory functionality.
+
+    Note: We don't provide Google's firmware. You'd need to obtain it separately or contact Nest support.
+  </Accordion>
+
+  <Accordion title="Does this work with Nest Gen 1 or Gen 3?" icon="question">
+    **Not yet.** Currently only **Generation 2** is supported.
+
+    Gen 1 and Gen 3 support is under development. Join our [Discord](https://discord.gg/AffeGaJ5XS) for updates.
+  </Accordion>
+
+  <Accordion title="Is my data safe?" icon="shield-check">
+    **Yes.** All communication uses SSL/TLS encryption.
+
+    For the hosted service, we don't sell or share your data.
+
+    For complete data ownership, consider [self-hosting](/self-hosted/overview).
+  </Accordion>
+</AccordionGroup>
+
+## Technical Questions
+
+<AccordionGroup>
+  <Accordion title="What if No Longer Evil shuts down?" icon="power-off">
+    **Hosted service users**: Your thermostat will lose remote access but continue working locally.
+
+    **Self-hosted users**: No impact - you're completely independent.
+
+    We're committed to open-sourcing everything so the community can continue the project indefinitely.
+  </Accordion>
+
+  <Accordion title="Can I use this without internet?" icon="wifi-slash">
+    **With self-hosting**: Yes! Run the API server on your local network and your thermostat works without internet.
+
+    **With hosted service**: No. The thermostat needs internet to reach No Longer Evil servers.
+  </Accordion>
+
+  <Accordion title="What happens during flashing if something goes wrong?" icon="triangle-exclamation">
+    **Worst case**: Device might be bricked (unresponsive).
+
+    **Recovery options**:
+    - Try reflashing (often works)
+    - Contact community for help
+
+    **Prevention**: Ensure battery is charged, use good USB cable, don't disconnect during flashing.
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting FAQs
+
+<AccordionGroup>
+  <Accordion title="My thermostat shows offline in the dashboard" icon="plug-circle-xmark">
+    **Check**:
+    1. Device is connected to WiFi (Settings → Network)
+    2. Internet connection is working
+    3. Firewall isn't blocking port 443
+    4. Try different network (phone hotspot) to isolate issue
+
+    See [Network Troubleshooting](/hosted/troubleshooting#network-issues)
+  </Accordion>
+
+  <Accordion title="Entry code doesn't work" icon="key">
+    **Common causes**:
+    - Code expired (>1 hour old) - generate new one
+    - Typo (check 0/O, 1/I/L confusion)
+    - Code already used - generate new one
+    - Device not online - check WiFi
+
+    See [Entry Code Troubleshooting](/hosted/troubleshooting#entry-code-issues)
+  </Accordion>
+
+  <Accordion title="Can't enter DFU mode" icon="usb">
+    **Try**:
+    - Charge battery to >50%
+    - Use different USB cable (data-capable, not charge-only)
+    - Hold display for full 15 seconds
+    - Start installer BEFORE rebooting device
+
+    See [DFU Mode Troubleshooting](/hosted/troubleshooting#dfu-mode-issues)
+  </Accordion>
+</AccordionGroup>
+
+## Still Have Questions?
+
+<CardGroup cols={2}>
+  <Card title="Join Discord" icon="discord" href="https://discord.gg/AffeGaJ5XS">
+    Ask the community
+  </Card>
+  <Card title="GitHub Discussions" icon="github" href="https://github.com/codykociemba/NoLongerEvil-Thermostat/discussions">
+    Browse existing Q&A
+  </Card>
+</CardGroup>

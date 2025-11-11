@@ -1,0 +1,217 @@
+---
+title: Choose Your Path
+description: 'Hosted service or self-hosted? Pick the right setup for you'
+---
+
+## Two Ways to Use NoLongerEvil
+
+NoLongerEvil offers two deployment options depending on your technical expertise and preferences:
+
+<CardGroup cols={2}>
+  <Card
+    title="Hosted Service"
+    icon="cloud-check"
+    color="#07C983"
+    href="/hosted/overview"
+  >
+    **Recommended for most users**
+
+    Plug and play - no server setup required
+  </Card>
+  <Card
+    title="Self-Hosted"
+    icon="server"
+    color="#0D9373"
+    href="/self-hosted/overview"
+  >
+    **For advanced users**
+
+    Complete control over your infrastructure
+  </Card>
+</CardGroup>
+
+## Hosted Service (Recommended)
+
+### What You Get
+
+The hosted service uses NoLongerEvil's managed infrastructure at **nolongerevil.com**. Your thermostat connects to our servers instead of Google's.
+
+<AccordionGroup>
+  <Accordion title="✅ Zero Configuration" icon="magic-wand-sparkles">
+    No server setup, no database management, no SSL certificates. Just flash the firmware and start using your thermostat.
+  </Accordion>
+
+  <Accordion title="✅ Always Up to Date" icon="cloud-arrow-up">
+    Automatic updates to the API server, dashboard, and features. You always get the latest improvements without lifting a finger.
+  </Accordion>
+
+  <Accordion title="✅ Web Dashboard" icon="browser">
+    Access your thermostat from anywhere via our hosted web dashboard. Control temperature, schedules, and settings from any device.
+  </Accordion>
+
+  <Accordion title="✅ Easy Device Management" icon="list-check">
+    Simple entry code system to link multiple thermostats to your account. Perfect for multi-zone setups.
+  </Accordion>
+
+  <Accordion title="✅ Novice Friendly" icon="graduation-cap">
+    No technical expertise required. If you can follow step-by-step instructions and plug in a USB cable, you can do this.
+  </Accordion>
+</AccordionGroup>
+
+### What You Need
+
+<CardGroup cols={2}>
+  <Card title="Time Required" icon="clock">
+    **15-30 minutes**
+
+    Most of this is waiting for firmware to flash and boot
+  </Card>
+  <Card title="Technical Level" icon="user">
+    **Beginner Friendly**
+
+    Can follow simple instructions
+  </Card>
+</CardGroup>
+
+### Limitations
+
+<Warning>
+  **Data Privacy**: Your thermostat data (temperature settings, schedules) is stored on NoLongerEvil servers. We're committed to privacy, but if you need absolute data ownership, consider self-hosting.
+</Warning>
+
+<Info>
+  **Service Dependency**: Your thermostat depends on NoLongerEvil's service availability. If our servers go down (rare), you'll temporarily lose remote access. Local thermostat functionality continues to work.
+</Info>
+
+### Best For
+
+- Homeowners who want a simple, working solution
+- Users without technical/server management experience
+- Anyone who wants to try No Longer Evil without commitment
+
+<Card
+  title="Get Started with Hosted Service"
+  icon="rocket"
+  href="/hosted/overview"
+>
+  Follow our step-by-step guide to flash firmware and start using your thermostat in under 30 minutes
+</Card>
+
+---
+
+## Self-Hosted (Advanced)
+
+### What You Get
+
+Self-hosting means running your own No Longer Evil infrastructure. Your thermostat connects to **your server**, not ours.
+
+<AccordionGroup>
+  <Accordion title="✅ Complete Data Ownership" icon="database">
+    All thermostat data stays on your servers. You control the database, logs, and every piece of information.
+  </Accordion>
+
+  <Accordion title="✅ No External Dependencies" icon="link-slash">
+    Your thermostat works independently of No Longe Evil's service. Even if we shut down, your setup keeps running forever.
+  </Accordion>
+
+  <Accordion title="✅ Full Customization" icon="code">
+    Modify the API server, build custom integrations, add features, or tweak behavior to your exact needs.
+  </Accordion>
+
+  <Accordion title="✅ Local Network Operation" icon="network-wired">
+    Run everything on your local network for ultra-low latency and no internet dependency (optional).
+  </Accordion>
+
+</AccordionGroup>
+
+### What You Need
+
+<CardGroup cols={2}>
+  <Card title="Time Required" icon="clock">
+    **2-4 hours**
+
+    Initial setup + troubleshooting
+  </Card>
+  <Card title="Technical Level" icon="user-gear">
+    **Advanced**
+
+    Comfortable with command line, Docker, networking
+  </Card>
+</CardGroup>
+
+### Requirements
+
+<Steps>
+  <Step title="Server/Computer">
+    A machine that can run 24/7 (Raspberry Pi, NAS, VPS, home server, or cloud VM)
+  </Step>
+  <Step title="Technical Skills">
+    - Command line / terminal navigation
+    - Basic networking knowledge (ports, firewalls, DNS)
+    - Docker experience (or willingness to learn)
+    - Understanding of environment variables and configuration
+  </Step>
+  <Step title="Infrastructure">
+    - Public IP or DDNS service (if accessing remotely)
+    - Port forwarding capability on router (if accessing remotely)
+  </Step>
+</Steps>
+
+### Components You'll Run
+
+When self-hosting, you're responsible for running and maintaining:
+
+1. **API Server (Port 443)** - Handles thermostat communication
+2. **Control API (Port 8081)** - Provides control interface
+3. **Database (Convex)** - Stores device state and configuration
+4. **Frontend (Optional)** - Web dashboard (can use hosted version)
+5. **SSL/TLS Certificates** - For secure communication
+
+### Challenges to Expect
+
+<Warning>
+  **This path requires technical troubleshooting.** You'll need to:
+
+  - Debug Docker containers and networking issues
+  - Manage SSL certificates and renewals
+  - Configure firewalls and port forwarding
+  - Set up and maintain databases
+  - Handle version upgrades manually
+
+  If you're not comfortable with these tasks, we strongly recommend the hosted service.
+</Warning>
+
+<Card
+  title="Self-Hosted Setup Guide"
+  icon="server"
+  href="/self-hosted/overview"
+>
+  Ready for the challenge? Follow our comprehensive guide to set up your own NoLongerEvil infrastructure
+</Card>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Hosted Service Setup"
+    icon="cloud"
+    href="/hosted/overview"
+    color="#07C983"
+  >
+    **Recommended Path**
+
+    Quick and easy setup for beginners
+  </Card>
+  <Card
+    title="Self-Hosted Setup"
+    icon="server"
+    href="/self-hosted/overview"
+    color="#0D9373"
+  >
+    **Advanced Path**
+
+    Complete control for experienced users
+  </Card>
+</CardGroup>

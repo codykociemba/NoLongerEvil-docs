@@ -1,0 +1,390 @@
+---
+title: Authentication
+description: 'Authentication methods for No Longer Evil APIs'
+---
+
+## Overview
+
+The two No Longer Evil APIs use different authentication methods based on their purpose:
+
+<CardGroup cols={2}>
+  <Card title="Thermostat Communication API" icon="shield-check">
+    **HTTP Basic Auth** with device serial number
+
+    Used by thermostats for device identification
+  </Card>
+  <Card title="Control API" icon="lock-open">
+    **No authentication** by default
+
+    Suitable for localhost or trusted networks
+  </Card>
+</CardGroup>
+
+---
+
+## Thermostat Communication API Authentication
+
+The Thermostat Communication API (port 443) uses **HTTP Basic Authentication** where the device serial number serves as both username and password.
+
+### How It Works
+
+1. **Device sends request** with Basic Auth header
+2. **Server extracts serial number** from Authorization header
+3. **Server validates** device exists in database
+4. **Request is processed** if valid
+
+### Basic Auth Format
+
+```http
+GET /transport/device/02AB01AC012345678 HTTP/1.1
+Host: backdoor.nolongerevil.com
+Authorization: Basic MDJBQjAxQUMwMTIzNDU2Nzg6
+```
+
+The Authorization header contains `Base64(serial:serial)`:
+
+```javascript
+// JavaScript example
+const serial = "02AB01AC012345678";
+const auth = btoa(`${serial}:${serial}`);
+// auth = "MDJBQjAxQUMwMTIzNDU2Nzg6MDJBQjAxQUMwMTIzNDU2Nzg="
+```
+
+```python
+# Python example
+import base64
+
+serial = "02AB01AC012345678"
+auth = base64.b64encode(f"{serial}:{serial}".encode()).decode()
+# auth = "MDJBQjAxQUMwMTIzNDU2Nzg6MDJBQjAxQUMwMTIzNDU2Nzg="
+```
+
+```bash
+# cURL example
+curl -u "02AB01AC012345678:02AB01AC012345678" \\
+  https://backdoor.nolongerevil.com/transport/device/02AB01AC012345678
+```
+
+### Serial Number Format
+
+Nest Generation 2 serial numbers follow this pattern:
+
+- **Format**: `02AB01AC012345678` (17 characters)
+- **Prefix**: Typically starts with `02`
+- **Structure**: Alphanumeric (0-9, A-F uppercase)
+
+<Tip>
+  The serial number is visible on the thermostat:
+  - Settings → Technical Info → Serial Number
+  - Or on the backplate label
+</Tip>
+
+### Authentication Flow
+
+```mermaid
+sequenceDiagram
+    participant T as Thermostat
+    participant API as API Server
+    participant DB as Convex DB
+
+    T->>API: GET /transport/device/{serial}<br/>Auth: Basic {serial}
+    API->>API: Extract serial from Auth header
+    API->>DB: Query device state
+    alt Device exists
+        DB-->>API: Return device state
+        API-->>T: 200 OK + device data
+    else Device not found
+        DB-->>API: Not found
+        API-->>T: 401 Unauthorized
+    end
+```
+
+### Security Considerations
+
+<Warning>
+  **Serial numbers are not secrets!** They're printed on the device and visible in the UI.
+
+  However, this authentication is sufficient because:
+  1. Only devices on your network can reach the API (unless port forwarded)
+  2. SSL/TLS encrypts all communication
+  3. Physical access is required to get the serial number
+  4. Devices are "claimed" via entry keys before they can be controlled
+</Warning>
+
+---
+
+## Entry Key Authentication
+
+Entry keys are used to **link devices to user accounts**. They provide temporary, one-time authentication.
+
+### Entry Key Properties
+
+- **Length**: 7 characters (uppercase letters and numbers)
+- **Format**: `A3XR7M2` (example)
+- **Lifespan**: 1 hour (3600 seconds by default)
+- **Single-use**: Each key can only claim one device
+- **Generation**: Created on-demand by thermostat
+
+### Entry Key Flow
+
+<Steps>
+  <Step title="User requests entry key">
+    On thermostat: Settings → Nest App → Get Entry Code
+  </Step>
+
+  <Step title="Thermostat generates key">
+    ```http
+    POST /passphrase HTTP/1.1
+    Host: backdoor.nolongerevil.com
+    Authorization: Basic {serial}
+
+    Response:
+    {
+      "key": "A3XR7M2",
+      "expires_at": "2025-11-11T14:30:00Z"
+    }
+    ```
+  </Step>
+
+  <Step title="User enters key in dashboard">
+    Dashboard sends key to claim device:
+    ```http
+    POST /api/entry-key/claim HTTP/1.1
+    Content-Type: application/json
+
+    {
+      "entryKey": "A3XR7M2",
+      "userId": "user_abc123"
+    }
+    ```
+  </Step>
+
+  <Step title="Server validates and claims">
+    - Check key exists and hasn't expired
+    - Link device to user account
+    - Mark key as used
+    - Return success
+  </Step>
+</Steps>
+
+### Entry Key Validation
+
+```javascript
+// Pseudocode for entry key validation
+function validateEntryKey(key, userId) {
+  const entryKey = database.getEntryKey(key);
+
+  // Check exists
+  if (!entryKey) {
+    return { error: "Invalid entry key" };
+  }
+
+  // Check expired
+  if (Date.now() > entryKey.expiresAt) {
+    return { error: "Entry key has expired" };
+  }
+
+  // Check already used
+  if (entryKey.claimedBy) {
+    return { error: "Entry key already used" };
+  }
+
+  // Claim device
+  database.linkDeviceToUser(entryKey.serial, userId);
+  database.markEntryKeyUsed(key, userId);
+
+  return { success: true, serial: entryKey.serial };
+}
+```
+
+### Entry Key Security
+
+<AccordionGroup>
+  <Accordion title="Why 1 hour expiration?" icon="clock">
+    Balances security and usability:
+    - Long enough for users to complete claiming process
+    - Short enough to prevent unauthorized use if leaked
+    - Prevents accumulation of unused keys in database
+  </Accordion>
+
+  <Accordion title="What if someone intercepts my key?" icon="shield-exclamation">
+    **Physical security required**: Entry keys are displayed on the thermostat screen, so an attacker would need physical access to your device.
+
+    If concerned about shoulder surfing:
+    - Generate key when ready to claim immediately
+    - Don't share keys via insecure channels
+    - Keys expire automatically
+  </Accordion>
+
+  <Accordion title="Can I customize expiration time?" icon="gear">
+    Yes, if self-hosting. Set environment variable:
+
+    ```bash
+    ENTRY_KEY_TTL_SECONDS=7200  # 2 hours
+    ```
+
+    Default is 3600 seconds (1 hour).
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Control API Authentication
+
+The Control API (port 8081) has **no built-in authentication** by default.
+
+<Warning>
+  **Not suitable for public exposure!** If your Control API is accessible from the internet, anyone can send commands to your thermostats.
+</Warning>
+
+### Recommended Security Approaches
+
+<Tabs>
+  <Tab title="Localhost Only">
+    **Best for self-hosting**
+
+    Run Control API on `localhost:8081` and only allow access from the same machine:
+
+    ```yaml
+    # docker-compose.yml
+    services:
+      api-server:
+        ports:
+          - "443:443"
+          - "127.0.0.1:8081:8081"  # Localhost only
+    ```
+
+    Only local applications can access the Control API.
+  </Tab>
+
+  <Tab title="Reverse Proxy Auth">
+    **Best for public access**
+
+    Use nginx or Caddy to add authentication:
+
+    ```nginx
+    # nginx config
+    location /control/ {
+        auth_basic "Restricted";
+        auth_basic_user_file /etc/nginx/.htpasswd;
+        proxy_pass http://localhost:8081/;
+    }
+    ```
+
+    Clients must provide HTTP Basic Auth to reach Control API.
+  </Tab>
+
+  <Tab title="Firewall Rules">
+    **Best for internal network**
+
+    Allow only specific IPs to access port 8081:
+
+    ```bash
+    # UFW example
+    sudo ufw deny 8081
+    sudo ufw allow from 192.168.1.0/24 to any port 8081
+    ```
+
+    Only devices on your local network can access the API.
+  </Tab>
+
+  <Tab title="VPN Only">
+    **Best for remote access**
+
+    Don't expose port 8081 publicly. Access via VPN (WireGuard, Tailscale, etc.):
+
+    ```bash
+    # No port forwarding for 8081
+    # Access via VPN: http://10.0.0.5:8081
+    ```
+
+    Remote access requires VPN connection to your network.
+  </Tab>
+</Tabs>
+
+### Adding Custom Authentication
+
+If self-hosting, you can modify the Control API to add authentication:
+
+```javascript
+// server/control-api.js (example modification)
+const express = require('express');
+const app = express();
+
+// Simple API key middleware
+function requireApiKey(req, res, next) {
+  const apiKey = req.headers['x-api-key'];
+
+  if (apiKey !== process.env.CONTROL_API_KEY) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  next();
+}
+
+// Apply to all Control API routes
+app.use(requireApiKey);
+
+app.post('/command', (req, res) => {
+  // Handle command...
+});
+```
+
+Then set `CONTROL_API_KEY` environment variable and include in requests:
+
+```bash
+curl -H "X-API-Key: your_secret_key_here" \\
+  -X POST http://localhost:8081/command \\
+  -d '{"serial":"02AB...","action":"temp","value":"22"}'
+```
+
+---
+
+## SSL/TLS Encryption
+
+<Info>
+  **Thermostat Communication API requires HTTPS** (port 443 with valid SSL certificate).
+
+  The thermostat won't accept self-signed certificates by default.
+</Info>
+
+### Certificate Requirements
+
+For the Thermostat Communication API:
+
+- **Valid SSL certificate** from trusted CA (Let's Encrypt recommended)
+- **Matches your domain** (e.g., cert for `nest.yourdomain.com`)
+- **Not expired**
+- **Includes full chain** (intermediate certificates)
+
+### Self-Signed Certificates (Advanced)
+
+If you want to use self-signed certificates, you'll need to modify the firmware to trust your CA:
+
+1. Generate your own Certificate Authority (CA)
+2. Build firmware with your CA certificate embedded
+3. Generate server certificate signed by your CA
+4. Thermostat will trust your CA and accept your certificate
+
+See [Building Custom Firmware](/self-hosted/building-firmware#custom-certificates) for details.
+
+---
+
+## Summary
+
+| API | Port | Authentication | Encryption |
+|-----|------|----------------|------------|
+| **Thermostat Communication** | 443 | HTTP Basic Auth (serial number) | HTTPS (required) |
+| **Entry Key Claiming** | 443 | Entry key (7-char code) | HTTPS (required) |
+| **Control API** | 8081 | None (add your own) | HTTP (add TLS if needed) |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Thermostat API Endpoints" icon="list" href="/api-reference/thermostat/entry">
+    Explore the Thermostat Communication API
+  </Card>
+  <Card title="Control API Endpoints" icon="gamepad" href="/api-reference/control/command">
+    Learn to send commands to thermostats
+  </Card>
+</CardGroup>

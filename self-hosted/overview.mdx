@@ -1,0 +1,298 @@
+---
+title: Self-Hosted Overview
+description: 'Run your own NoLongerEvil infrastructure for complete control'
+---
+
+## What is Self-Hosting?
+
+Self-hosting means running the entire NoLongerEvil stack on your own infrastructure rather than using our managed service. Your thermostat connects to **your server**, giving you complete control over data and functionality.
+
+<Warning>
+  **Advanced users only!** Self-hosting requires:
+  - Server administration experience
+  - Comfort with command line/terminal
+  - Understanding of networking, Docker, and databases
+  - Time for setup and ongoing maintenance
+
+  If this sounds overwhelming, we recommend the [hosted service](/hosted/overview).
+</Warning>
+
+## Architecture Overview
+
+When self-hosting, you'll run these components:
+
+<Steps>
+  <Step title="API Server (Port 443)">
+    Node.js HTTPS server that intercepts thermostat communication
+
+    **Responsibilities**:
+    - Handle device connections and authentication
+    - Proxy weather requests
+    - Manage device state synchronization
+    - Generate entry keys
+
+    **Requirements**:
+    - Public IP or DDNS
+    - SSL/TLS certificate
+    - Port 443 accessible
+  </Step>
+
+  <Step title="Control API (Port 8081)">
+    HTTP API for sending commands and querying device status
+
+    **Responsibilities**:
+    - Accept control commands (temperature, mode)
+    - Provide device status
+    - List connected devices
+
+    **Requirements**:
+    - Port 8081 accessible (can be localhost-only)
+  </Step>
+
+  <Step title="Database (Convex)">
+    Backend database for persistent storage
+
+    **Stores**:
+    - Device state and configuration
+    - User accounts (if using frontend)
+    - Entry keys
+    - Weather cache
+
+    **Options**:
+    - Convex Cloud (easiest)
+    - Self-hosted Convex (advanced)
+  </Step>
+
+  <Step title="Frontend (Optional)">
+    Next.js web application for device management
+
+    **Features**:
+    - User authentication (Clerk)
+    - Device dashboard
+    - Control interface
+
+    **Note**: You can use the hosted frontend at nolongerevil.com pointed at your self-hosted API
+  </Step>
+</Steps>
+
+## Deployment Options
+
+<CardGroup cols={3}>
+  <Card title="Home Server" icon="house-signal">
+    Raspberry Pi, NAS, or dedicated machine
+
+    **Pros**: Complete control, no recurring costs
+
+    **Cons**: Requires port forwarding, dynamic IP management
+  </Card>
+  <Card title="Cloud VPS" icon="cloud">
+    DigitalOcean, Linode, AWS EC2, etc.
+
+    **Pros**: Static IP, reliable uptime, easy SSL
+
+    **Cons**: Monthly cost ($5-20/mo)
+  </Card>
+  <Card title="Docker Homelab" icon="docker">
+    Existing Docker/Portainer setup
+
+    **Pros**: Integrates with existing infrastructure
+
+    **Cons**: Need existing knowledge
+  </Card>
+</CardGroup>
+
+## What You'll Need
+
+### Technical Requirements
+
+<Checklist>
+  - [ ] Server or VPS running Linux (Ubuntu 22.04+ recommended)
+  - [ ] Docker and Docker Compose installed
+  - [ ] Domain name (optional but recommended)
+  - [ ] SSL certificate (Let's Encrypt or self-signed)
+  - [ ] Port 443 accessible from internet
+  - [ ] Port 8081 accessible (can be localhost or internal network)
+</Checklist>
+
+### Technical Skills
+
+<Checklist>
+  - [ ] Command line / terminal navigation
+  - [ ] Basic networking (DNS, ports, firewalls)
+  - [ ] Docker containers and docker-compose
+  - [ ] Environment variables and configuration files
+  - [ ] SSL/TLS certificate management
+  - [ ] (Optional) Next.js and Node.js for customization
+</Checklist>
+
+### Estimated Time
+
+- **Initial Setup**: 2-4 hours
+- **Troubleshooting**: 1-2 hours (varies)
+- **Ongoing Maintenance**: ~1 hour/month
+
+## Setup Process Overview
+
+<Steps>
+  <Step title="Prerequisites">
+    Install Docker, set up domain, configure firewall
+
+    [View detailed prerequisites →](/self-hosted/prerequisites)
+  </Step>
+
+  <Step title="Infrastructure Setup">
+    Create Convex database, configure SSL certificates, set up environment variables
+
+    [View infrastructure guide →](/self-hosted/infrastructure-setup)
+  </Step>
+
+  <Step title="Build Custom Firmware">
+    Compile firmware with your API URL instead of NoLongerEvil's
+
+    [View firmware building guide →](/self-hosted/building-firmware)
+  </Step>
+
+  <Step title="Run API Server">
+    Deploy the Docker containers for API server and control API
+
+    [View API server guide →](/self-hosted/running-api-server)
+  </Step>
+
+  <Step title="(Optional) Deploy Frontend">
+    Host your own web dashboard or use hybrid approach
+
+    [View configuration reference →](/self-hosted/configuration-reference)
+  </Step>
+
+  <Step title="Flash Firmware">
+    Use the same flashing process as hosted, but with your custom-built firmware
+
+    [Back to installation guide →](/hosted/installation)
+  </Step>
+</Steps>
+
+## Hybrid Approach (Recommended for Beginners)
+
+You don't have to self-host everything:
+
+<Accordion title="Option 1: Self-Hosted API + Hosted Frontend">
+  **What you run**: API server only
+
+  **What NoLongerEvil provides**: Web dashboard
+
+  **How it works**:
+  - Your thermostat connects to your API server
+  - You configure the hosted frontend to point to your API URL
+  - You control your data while using our interface
+
+  **Pros**:
+  - Easiest self-hosted option
+  - Data ownership
+  - No frontend maintenance
+
+  **Cons**:
+  - Depend on our frontend availability
+  - Must expose API publicly
+</Accordion>
+
+<Accordion title="Option 2: Full Self-Hosted">
+  **What you run**: API server + frontend + database
+
+  **What NoLongerEvil provides**: Nothing (fully independent)
+
+  **Pros**:
+  - Complete independence
+  - Full customization
+  - No external dependencies
+
+  **Cons**:
+  - Most complex setup
+  - Frontend maintenance required
+  - Authentication setup needed
+</Accordion>
+
+## Costs
+
+<CardGroup cols={2}>
+  <Card title="Home Server" icon="piggy-bank">
+    **One-time**: Hardware cost (Raspberry Pi ~$50-100)
+
+    **Monthly**: Electricity (~$2-5)
+
+    **Total**: ~$3-7/month
+  </Card>
+  <Card title="Cloud VPS" icon="dollar-sign">
+    **One-time**: $0 (no hardware)
+
+    **Monthly**: VPS hosting ($5-20)
+
+    **Total**: $5-20/month
+  </Card>
+</CardGroup>
+
+<Info>
+  **Domain name**: $10-15/year (optional, can use IP address)
+
+  **SSL certificate**: Free with Let's Encrypt
+</Info>
+
+## Benefits of Self-Hosting
+
+<AccordionGroup>
+  <Accordion title="🔒 Complete Data Privacy" icon="shield-check">
+    All thermostat data stays on your infrastructure. No third-party has access.
+  </Accordion>
+
+  <Accordion title="🌐 No External Dependencies" icon="link-slash">
+    Your setup works independently of NoLongerEvil's service. Even if we shut down, you keep running.
+  </Accordion>
+
+  <Accordion title="⚙️ Full Customization" icon="code">
+    Modify API behavior, add integrations, tweak features to your exact needs.
+  </Accordion>
+
+  <Accordion title="🏠 Local Network Operation" icon="network-wired">
+    Can run on local network only (no internet required) for ultra-low latency and maximum privacy.
+  </Accordion>
+
+  <Accordion title="📚 Learning Opportunity" icon="graduation-cap">
+    Great hands-on experience with Docker, APIs, embedded systems, and full-stack deployment.
+  </Accordion>
+</AccordionGroup>
+
+## Challenges to Expect
+
+<Warning>
+  Be prepared to troubleshoot:
+
+  - Docker networking and container issues
+  - SSL certificate setup and renewal
+  - Port forwarding and firewall configuration
+  - DNS and domain management
+  - Database connection problems
+  - Environment variable configuration errors
+
+  **If you're not comfortable with these topics**, we strongly recommend starting with the [hosted service](/hosted/overview).
+</Warning>
+
+## Support for Self-Hosting
+
+<Info>
+  While we provide documentation and community support for self-hosting, **we cannot provide 1-on-1 support for custom infrastructure issues**.
+
+  The community Discord and GitHub Issues are your best resources.
+</Info>
+
+## Ready to Begin?
+
+<Card title="Prerequisites & Setup" icon="list-check" href="/self-hosted/prerequisites">
+  Start the self-hosted setup process with prerequisites checklist
+</Card>
+
+---
+
+## Or Start Simple
+
+<Card title="Try Hosted Service First" icon="cloud" href="/hosted/overview">
+  Not sure yet? Try the hosted service to see if NoLongerEvil meets your needs before investing time in self-hosting. You can always migrate later.
+</Card>

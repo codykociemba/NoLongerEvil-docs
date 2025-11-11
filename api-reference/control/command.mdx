@@ -1,0 +1,302 @@
+---
+title: POST /command
+description: 'Send commands to control thermostat'
+---
+
+## Overview
+
+The `/command` endpoint allows you to control thermostat settings programmatically from the Control API (port 8081).
+
+## Endpoint
+
+```
+POST http://localhost:8081/command
+```
+
+<Warning>
+  This endpoint has **no authentication** by default. Secure it appropriately if exposing publicly.
+</Warning>
+
+## Request
+
+### Headers
+
+```http
+POST /command HTTP/1.1
+Host: localhost:8081
+Content-Type: application/json
+```
+
+### Body
+
+```json
+{
+  "serial": "02AB01AC012345678",
+  "action": "temp",
+  "value": "22"
+}
+```
+
+### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `serial` | String | Yes | Device serial number (17 chars) |
+| `action` | String | Yes | Command type (see below) |
+| `value` | String | Yes | Command value |
+
+### Supported Actions
+
+| Action | Description | Value Format | Example |
+|--------|-------------|--------------|---------|
+| `temp` / `temperature` | Set target temperature | Temperature in °C | `"22"` or `"22.5"` |
+| `away` | Set away mode | `"on"` or `"off"` | `"on"` |
+| `set` | Set HVAC mode | `"heat"`, `"cool"`, `"range"`, `"off"` | `"heat"` |
+
+## Response
+
+### Success (200 OK)
+
+```json
+{
+  "success": true,
+  "serial": "02AB01AC012345678",
+  "action": "temp",
+  "value": "22",
+  "message": "Command sent successfully"
+}
+```
+
+### Error (400 Bad Request)
+
+```json
+{
+  "error": "Invalid action",
+  "message": "Action must be one of: temp, temperature, away, set"
+}
+```
+
+### Error (404 Not Found)
+
+```json
+{
+  "error": "Device not found",
+  "message": "No device with serial 02AB01AC012345678"
+}
+```
+
+## Examples
+
+<CodeGroup>
+
+```bash Set Temperature
+curl -X POST http://localhost:8081/command \
+  -H "Content-Type: application/json" \
+  -d '{
+    "serial": "02AB01AC012345678",
+    "action": "temp",
+    "value": "22"
+  }'
+```
+
+```bash Enable Away Mode
+curl -X POST http://localhost:8081/command \
+  -H "Content-Type: application/json" \
+  -d '{
+    "serial": "02AB01AC012345678",
+    "action": "away",
+    "value": "on"
+  }'
+```
+
+```bash Set HVAC Mode
+curl -X POST http://localhost:8081/command \
+  -H "Content-Type: application/json" \
+  -d '{
+    "serial": "02AB01AC012345678",
+    "action": "set",
+    "value": "heat"
+  }'
+```
+
+```javascript JavaScript/Node.js
+const axios = require('axios');
+
+async function setTemperature(serial, temp) {
+  const response = await axios.post('http://localhost:8081/command', {
+    serial,
+    action: 'temp',
+    value: temp.toString()
+  });
+  
+  return response.data;
+}
+
+// Usage
+setTemperature('02AB01AC012345678', 22)
+  .then(result => console.log('Temperature set:', result))
+  .catch(err => console.error('Error:', err));
+```
+
+```python Python
+import requests
+
+def set_temperature(serial, temp):
+    response = requests.post(
+        'http://localhost:8081/command',
+        json={
+            'serial': serial,
+            'action': 'temp',
+            'value': str(temp)
+        }
+    )
+    return response.json()
+
+# Usage
+result = set_temperature('02AB01AC012345678', 22)
+print('Temperature set:', result)
+```
+
+</CodeGroup>
+
+## Use Cases
+
+### 1. Home Automation Integration
+
+```javascript
+// Home Assistant / Node-RED integration
+async function handleTemperatureChange(newTemp) {
+  await fetch('http://localhost:8081/command', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      serial: process.env.THERMOSTAT_SERIAL,
+      action: 'temp',
+      value: newTemp.toString()
+    })
+  });
+}
+```
+
+### 2. Schedule Automation
+
+```javascript
+// Set temperature based on schedule
+const schedule = [
+  { time: '06:00', temp: 21 },  // Morning
+  { time: '09:00', temp: 18 },  // Away
+  { time: '17:00', temp: 22 },  // Evening
+  { time: '22:00', temp: 19 }   // Night
+];
+
+cron.schedule('* * * * *', () => {
+  const now = new Date().toTimeString().slice(0, 5);
+  const entry = schedule.find(s => s.time === now);
+  
+  if (entry) {
+    setTemperature(SERIAL, entry.temp);
+  }
+});
+```
+
+### 3. Voice Assistant Integration
+
+```javascript
+// Alexa/Google Home webhook
+app.post('/alexa/temperature', async (req, res) => {
+  const temp = req.body.value;
+  
+  await fetch('http://localhost:8081/command', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      serial: THERMOSTAT_SERIAL,
+      action: 'temp',
+      value: temp
+    })
+  });
+  
+  res.json({ speech: `Setting temperature to ${temp} degrees` });
+});
+```
+
+## Command Details
+
+### Temperature Command
+
+**Actions**: `temp` or `temperature`
+
+**Value**: Temperature in Celsius (accepts decimals)
+
+```json
+{
+  "serial": "02AB01AC012345678",
+  "action": "temp",
+  "value": "21.5"
+}
+```
+
+<Note>
+  The thermostat will round to the nearest 0.5°C increment.
+</Note>
+
+### Away Mode Command
+
+**Action**: `away`
+
+**Value**: `"on"` or `"off"`
+
+```json
+{
+  "serial": "02AB01AC012345678",
+  "action": "away",
+  "value": "on"
+}
+```
+
+When away mode is enabled:
+- Target temperature adjusted (lower in winter, higher in summer)
+- Motion detection disabled
+- Learning algorithms paused
+
+### HVAC Mode Command
+
+**Action**: `set`
+
+**Value**: `"heat"`, `"cool"`, `"range"`, or `"off"`
+
+```json
+{
+  "serial": "02AB01AC012345678",
+  "action": "set",
+  "value": "heat"
+}
+```
+
+**Modes**:
+- `heat` - Heating only
+- `cool` - Cooling only
+- `range` - Heat/cool (maintains temperature range)
+- `off` - System off
+
+## Rate Limiting
+
+<Info>
+  **Recommended**: Max 10 commands per minute per device
+
+  Excessive commands may cause:
+  - Device unresponsiveness
+  - Increased wear on HVAC equipment
+  - Battery drain on thermostat
+</Info>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="GET /status" href="/api-reference/control/status">
+    Query device status and current settings
+  </Card>
+  <Card title="GET /api/devices" href="/api-reference/control/devices">
+    List all connected devices
+  </Card>
+</CardGroup>

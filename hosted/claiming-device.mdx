@@ -1,0 +1,193 @@
+---
+title: Claiming Additional Devices
+description: 'Link multiple Nest thermostats to your account'
+---
+
+## Overview
+
+You can link multiple Nest thermostats to a single NoLongerEvil account. This is perfect for:
+
+- Multi-zone homes with multiple thermostats
+- Managing thermostats in different properties
+- Testing devices before deploying to production
+
+## Prerequisites
+
+Before claiming an additional device:
+
+<Checklist>
+  - [ ] Device has NoLongerEvil firmware installed ([see installation guide](/hosted/installation))
+  - [ ] Device is connected to WiFi
+  - [ ] You're logged into your NoLongerEvil account
+</Checklist>
+
+## How to Claim a Device
+
+<Steps>
+  <Step title="Generate Entry Code">
+    On the Nest thermostat you want to link:
+
+    1. Navigate to **Settings → Nest App → Get Entry Code**
+    2. A 7-character code will appear (e.g., `K2P9WXL`)
+    3. Note the code (it expires in 1 hour)
+  </Step>
+
+  <Step title="Open Dashboard">
+    Go to [nolongerevil.com](https://nolongerevil.com) and log in to your account.
+  </Step>
+
+  <Step title="Add Device">
+    In the dashboard:
+
+    1. Click **"Add Device"** or the **"+"** button
+    2. Enter the 7-character entry code
+    3. Click **"Claim Device"**
+  </Step>
+
+  <Step title="Device Linked">
+    If successful, the device will appear in your dashboard immediately with:
+
+    - Device serial number
+    - Current temperature
+    - Connection status
+
+    You can now control it from the dashboard!
+  </Step>
+</Steps>
+
+## Entry Code Details
+
+### How Entry Codes Work
+
+Entry codes are temporary 7-character strings that link a device to your account:
+
+- **Generated on-demand** by the thermostat
+- **Single-use** - each code can only claim one device
+- **Time-limited** - expires after 1 hour (3600 seconds by default)
+- **Random** - uses secure random generation
+- **Case-sensitive** - must be entered exactly as shown
+
+### Why Entry Codes?
+
+Entry codes provide a secure way to link devices without requiring complex authentication on the thermostat:
+
+1. **User-friendly**: Easy to type and read
+2. **Secure**: Short-lived and single-use prevents unauthorized access
+3. **Offline-capable**: Can be generated without internet (code validated when connected)
+4. **No credentials needed**: Don't need to enter passwords on the thermostat
+
+## Managing Multiple Devices
+
+Once you have multiple devices linked:
+
+### Viewing All Devices
+
+The dashboard shows all your devices in a grid or list view:
+
+- Device name (customizable)
+- Current temperature
+- Target temperature
+- Heating/cooling status
+- Last seen timestamp
+
+### Renaming Devices
+
+<Steps>
+  <Step title="Click Device Settings">
+    Click the gear icon or settings button on a device card
+  </Step>
+  <Step title="Edit Name">
+    Enter a friendly name like:
+    - "Living Room"
+    - "Master Bedroom"
+    - "Guest House"
+    - "Basement"
+  </Step>
+  <Step title="Save">
+    Click Save - the new name appears everywhere in the dashboard
+  </Step>
+</Steps>
+
+### Removing Devices
+
+To unlink a device from your account:
+
+<Steps>
+  <Step title="Device Settings">
+    Open the device settings menu
+  </Step>
+  <Step title="Remove Device">
+    Click **"Remove Device"** or **"Unlink"**
+  </Step>
+  <Step title="Confirm">
+    Confirm the removal
+
+    <Warning>
+      The device will continue to function as a local thermostat, but you'll lose remote access until you claim it again.
+    </Warning>
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Entry code says 'Invalid'" icon="xmark">
+    **Possible causes:**
+
+    - Code was mistyped (check for 0/O, 1/I/L confusion)
+    - Code expired (>1 hour old) - generate a new one
+    - Code already used - generate a new one
+    - Device not connected to WiFi - check network
+
+    **Solution**: Generate a fresh entry code and try again
+  </Accordion>
+
+  <Accordion title="Entry code says 'Expired'" icon="clock">
+    Entry codes are only valid for 1 hour after generation.
+
+    **Solution**: Generate a new code:
+    - Settings → Nest App → Get Entry Code
+    - Enter the new code immediately
+  </Accordion>
+
+  <Accordion title="Device appears offline immediately after claiming" icon="wifi-slash">
+    The device may not be connected to WiFi or can't reach NoLongerEvil servers.
+
+    **Check:**
+    - WiFi connection on the thermostat (Settings → Network)
+    - Internet connectivity
+    - Firewall not blocking port 443
+
+    See [Network Troubleshooting](/hosted/troubleshooting#network-issues)
+  </Accordion>
+
+  <Accordion title="Can't find 'Get Entry Code' option" icon="question">
+    Make sure:
+    - NoLongerEvil firmware is installed (see the NoLongerEvil logo on boot)
+    - Device has completed first boot
+    - You're in Settings → Nest App (not Settings → App)
+
+    If still missing, the firmware may not have flashed correctly. Try reflashing.
+  </Accordion>
+</AccordionGroup>
+
+## Security Considerations
+
+<Info>
+  **Physical access required**: To claim a device, someone must have physical access to the thermostat to retrieve the entry code. This prevents remote hijacking of devices.
+</Info>
+
+<Warning>
+  **Don't share entry codes**: Treat entry codes like passwords. Anyone with the code can link the device to their account. If you accidentally share a code, let it expire or claim the device yourself immediately.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Using the Dashboard" icon="browser" href="/usage/web-dashboard">
+    Learn how to control your thermostats
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/hosted/troubleshooting">
+    Common issues and solutions
+  </Card>
+</CardGroup>

@@ -1,0 +1,111 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "No Longer Evil",
+  "favicon": "/favicon.svg",
+  "theme": "prism",
+  "colors": {
+    "primary": "#0D9373",
+    "light": "#07C983",
+    "dark": "#0D9373",
+    "anchors": {
+      "from": "#0D9373",
+      "to": "#07C983"
+    }
+  },
+  "topbarLinks": [
+    {
+      "name": "Support",
+      "url": "mailto:cody@hackhouse.io"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "Dashboard",
+    "url": "https://nolongerevil.com/dashboard"
+  },
+  "tabs": [
+    {
+      "name": "API Reference",
+      "url": "api-reference"
+    }
+  ],
+  "anchors": [
+    {
+      "name": "GitHub",
+      "icon": "github",
+      "url": "https://github.com/codykociemba/NoLongerEvil-Thermostat"
+    },
+    {
+      "name": "Community",
+      "icon": "discord",
+      "url": "https://discord.gg/AffeGaJ5XS"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Get Started",
+      "pages": [
+        "introduction",
+        "compatibility",
+        "choose-your-path"
+      ]
+    },
+    {
+      "group": "Hosted Service (Recommended)",
+      "pages": [
+        "hosted/overview",
+        "hosted/installation",
+        "hosted/claiming-device",
+        "hosted/troubleshooting"
+      ]
+    },
+    {
+      "group": "Self-Hosted (Advanced)",
+      "pages": [
+        "self-hosted/overview",
+        "self-hosted/prerequisites",
+        "self-hosted/infrastructure-setup",
+        "self-hosted/building-firmware",
+        "self-hosted/running-api-server",
+        "self-hosted/configuration-reference",
+        "self-hosted/troubleshooting"
+      ]
+    },
+    {
+      "group": "API Documentation",
+      "pages": [
+        "api-reference/introduction",
+        "api-reference/authentication"
+      ]
+    },
+    {
+      "group": "Thermostat Communication API (Port 443)",
+      "pages": [
+        "api-reference/thermostat/entry",
+        "api-reference/thermostat/passphrase",
+        "api-reference/thermostat/transport-device",
+        "api-reference/thermostat/transport-subscribe",
+        "api-reference/thermostat/transport-put",
+        "api-reference/thermostat/weather",
+        "api-reference/thermostat/other-endpoints"
+      ]
+    },
+    {
+      "group": "Control API (Port 8081)",
+      "pages": [
+        "api-reference/control/command",
+        "api-reference/control/status",
+        "api-reference/control/devices"
+      ]
+    },
+    {
+      "group": "Support",
+      "pages": [
+        "support/faq"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "github": "https://github.com/codykociemba/NoLongerEvil-Thermostat",
+    "discord": "https://discord.gg/AffeGaJ5XS"
+  }
+}
