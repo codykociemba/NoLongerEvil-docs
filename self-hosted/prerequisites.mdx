@@ -3,72 +3,8 @@ title: Prerequisites
 description: 'Requirements and preparation for self-hosting'
 ---
 
-## Server Requirements
+<Info>
+  **Documentation Coming Soon!**
 
-<Checklist>
-  - [ ] Linux server (Ubuntu 22.04+, Debian 11+, or similar)
-  - [ ] Minimum 1GB RAM, 2GB recommended
-  - [ ] 10GB free disk space
-  - [ ] Root or sudo access
-</Checklist>
-
-## Software Requirements
-
-### Install Docker
-
-```bash
-# Ubuntu/Debian
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
-sudo usermod -aG docker $USER
-```
-
-### Install Docker Compose
-
-```bash
-sudo apt-get install docker-compose-plugin
-```
-
-### Install Node.js (for building firmware)
-
-```bash
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt-get install -y nodejs
-```
-
-## Network Requirements
-
-<Steps>
-  <Step title="Domain Name (Recommended)">
-    Register a domain or subdomain for your API server
-    
-    Examples:
-    - `nest.yourdomain.com`
-    - `thermostat.yourdomain.com`
-    
-    Or use Dynamic DNS (DuckDNS, No-IP, etc.)
-  </Step>
-
-  <Step title="Port Forwarding">
-    Forward these ports on your router:
-    
-    - **Port 443** (HTTPS) → API Server
-    - **Port 8081** (HTTP) → Control API (optional, can be localhost-only)
-  </Step>
-
-  <Step title="Firewall Configuration">
-    Allow incoming connections:
-    
-    ```bash
-    sudo ufw allow 443/tcp
-    sudo ufw allow 8081/tcp  # Only if exposing externally
-    sudo ufw enable
-    ```
-  </Step>
-</Steps>
-
-## Next Steps
-
-<Card title="Infrastructure Setup" icon="server" href="/self-hosted/infrastructure-setup">
-  Continue with database and SSL certificate setup
-</Card>
+  Self-hosted setup documentation is currently in development. For early access, check the [open-source-prototype branch](https://github.com/codykociemba/NoLongerEvil-Thermostat/tree/open-source-prototype) on GitHub.
+</Info>

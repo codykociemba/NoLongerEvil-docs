@@ -8,312 +8,166 @@ description: 'Step-by-step instructions to flash firmware and set up your Nest t
 
   - Ensure you have a **Nest Generation 2** thermostat ([check compatibility](/compatibility))
   - Do NOT use this on a thermostat critical for heating/cooling (experimental software)
+  - This will brick your device if done incorrectly - proceed at your own risk
 </Warning>
 
-## Step 1: Download Firmware Installer
+## Prerequisites
 
-Download the firmware installer for your operating system:
+You'll need:
+- **Linux computer** or **macOS**
+  - ⚠️ **Windows is NOT supported** (including WSL)
+- **Nest Generation 2 thermostat**
+  - Check for green bubble level on back plate (not blue)
+- **Micro USB cable** (data-capable, not charging-only)
+- **Build tools and dependencies** installed
 
-<CardGroup cols={3}>
-  <Card title="Windows" icon="windows">
-  **In Development**
+---
 
-    Windows 10/11 (64-bit)
+## Step 1: Clone Repository
 
-    [Coming Soon](#)
-  </Card>
-  <Card title="macOS" icon="apple">
+Clone the repository:
 
-    macOS 10.15+ (Intel & Apple Silicon)
+```bash
+git clone https://github.com/codykociemba/NoLongerEvil-Thermostat.git
+cd NoLongerEvil-Thermostat
+```
 
-    [Download →](#)
-  </Card>
-  <Card title="Linux" icon="linux">
+---
 
-    Ubuntu 20.04+ / Debian / Fedora
-
-    [Download →](#)
-  </Card>
-</CardGroup>
-
-### Installation Instructions
+## Step 2: Install Dependencies
 
 <Tabs>
-  <Tab title="macOS">
-    1. Download `NoLongerEvil.dmg`
-    2. Open the DMG file
-    3. Drag NoLongerEvil to the Applications folder
-    4. Launch from Applications (you may need to allow it in Security & Privacy settings)
-
-    <Tip>
-      **First time opening**: Right-click → Open to bypass Gatekeeper if needed
-    </Tip>
+  <Tab title="Ubuntu/Debian">
+    ```bash
+    sudo apt-get update
+    sudo apt-get install build-essential libusb-1.0-0-dev gcc pkg-config
+    ```
   </Tab>
-  <Tab title="Linux">
-    1. Download `NoLongerEvil.AppImage`
-    2. Make it executable:
+  <Tab title="macOS">
+    First, install Xcode Command Line Tools:
+
     ```bash
-    chmod +x NoLongerEvil.AppImage
-    ```
-    3. Run the AppImage:
-    ```bash
-    ./NoLongerEvil.AppImage
+    xcode-select --install
     ```
 
-    <Note>
-      **USB permissions**: You may need to run with `sudo` or add udev rules for USB access
-    </Note>
+    Then install libusb using Homebrew:
+
+    ```bash
+    # Install Homebrew if you don't have it
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+    # Install libusb
+    brew install libusb
+    ```
   </Tab>
 </Tabs>
 
 ---
 
-## Step 2: Prepare Your Thermostat
+## Step 3: Build omap_loader
 
-Before flashing, prepare your Nest thermostat:
+Build the USB flashing tool:
 
-<Steps>
-  <Step title="Charge the Battery">
-    Ensure your thermostat is charged to **at least 50%**.
+```bash
+chmod +x build.sh
+./build.sh
+```
 
-    - Check battery level: **Settings → Technical Info → Battery**
-    - If low, leave it on the wall mount connected to your HVAC system for 1-2 hours
-  </Step>
-
-  <Step title="Note Your Settings (Optional)">
-    While the firmware should preserve your settings, it's good practice to note:
-
-    - Current temperature schedules
-    - Auto-Away settings
-    - Furnace/AC wiring configuration
-
-    Take photos of your schedule screens if desired.
-  </Step>
-
-  <Step title="Remove from Wall">
-    Pull the Nest display off the wall mount/backplate.
-
-    - Hold the display and gently pull straight out
-    - The device will continue to run on battery power
-  </Step>
-</Steps>
+The build script will automatically detect your operating system (Linux, macOS, or Windows) and build the appropriate binary.
 
 ---
 
-## Step 3: Connect Device to Computer
+## Step 4: Start the Installer
 
-<Steps>
-  <Step title="Get a Micro USB Cable">
-    Use a **data-capable** micro USB cable (not charging-only).
+**IMPORTANT**: Start the installer **BEFORE** rebooting your thermostat into DFU mode.
 
-    <Warning>
-      Some cheap USB cables only support charging and won't work for data transfer. If the installer doesn't detect your device, try a different cable.
-    </Warning>
-  </Step>
+```bash
+chmod +x install.sh
+./install.sh
+```
 
-  <Step title="Plug Into Computer">
-    Connect the Nest thermostat to your computer:
+<Note>
+  **For macOS users:** You may need to grant USB permissions. If you encounter permission issues, check System Preferences → Security & Privacy.
+</Note>
 
-    1. Find the micro USB port on the back of the Nest (behind the display)
-    2. Plug the micro USB end into the thermostat
-    3. Plug the USB end into your computer
-
-    The thermostat screen should turn on if it was off.
-  </Step>
-
-  <Step title="Start the Installer">
-    Open the No Longer Evil firmware installer app you downloaded in Step 1, following the instructions to flash the firmware.
-
-    The app will display "Waiting for device..."
-  </Step>
-</Steps>
+The script will wait for the device to enter DFU mode.
 
 ---
 
-## Step 4: Enter DFU Mode
+## Step 5: Enter DFU Mode
 
-DFU (Device Firmware Update) mode allows the firmware to be flashed.
+Follow these steps carefully:
 
-<Steps>
-  <Step title="Ensure Installer is Running">
-    **CRITICAL**: The installer app must be running and showing "Waiting for device..." **BEFORE** you reboot the thermostat.
+1. **Charge the device** - Ensure your Nest Thermostat is properly charged (at least 50% battery recommended)
+2. **Remove from wall** - Remove the Nest from its back plate/wall mount
+3. **Connect via USB** - Plug the Nest into your computer using a micro USB cable
+4. **Wait for the installer** - Make sure the `install.sh` script is running and waiting
+5. **Reboot the device** - Press and hold down on the display for 10-15 seconds until the device reboots
+6. **DFU mode active** - Once it reboots, the device will enter DFU mode and the installer script will recognize it and begin flashing
 
-    Do not proceed until the installer is ready.
-  </Step>
-
-  <Step title="Reboot the Thermostat">
-    With the USB cable connected:
-
-    1. **Press and hold** the center of the Nest display
-    2. Keep holding for **10-15 seconds**
-    3. The screen will go black and the device will reboot
-    4. **Continue holding** during the reboot
-    5. Release when you see the screen flash or the installer recognizes the device
-  </Step>
-
-  <Step title="DFU Mode Activated">
-    When successful, you'll see:
-
-    - The installer app detects the device and begins the flashing process
-    - The Nest screen may be blank or show a No Longer Evil boot logo
-
-    <Tip>
-      **If it doesn't work the first time**: Re-attach the device to the back plate, boot the device, and then remove from the back plate and try again.
-    </Tip>
-  </Step>
-</Steps>
+The firmware installer will automatically detect the device and flash the custom bootloader (x-load, u-boot) and kernel (uImage).
 
 ---
 
-## Step 5: Flash Firmware
+## Step 6: Wait for Boot
 
-Once the device is in DFU mode, the installer will automatically begin flashing.
+After the firmware is flashed successfully, you should see the No Longer Evil logo on the device screen.
 
-<Steps>
-  <Step title="Automatic Flashing Begins">
-    The installer will flash three components in sequence:
-
-    1. **x-load.bin** - First-stage bootloader (~ 5 seconds)
-    2. **u-boot.bin** - Second-stage bootloader (~10 seconds)
-    3. **uImage** - Linux kernel (~30-60 seconds)
-
-    You'll see a progress bar for each component.
-  </Step>
-
-  <Step title="Do Not Disconnect">
-    <Warning>
-      **DO NOT unplug the device** during flashing! This can brick your thermostat.
-    </Warning>
-
-    Keep the USB cable connected and wait for the "Flashing complete!" message.
-  </Step>
-
-  <Step title="Flashing Complete">
-    When done, the installer will show:
-
-    ✅ **"Firmware flashing successful!"**
-
-    The device will automatically reboot.
-  </Step>
-</Steps>
-
-## Step 6: Register Account
-
-Now that your thermostat has the No Longer Evil firmware, let's set up your account.
-
-<Steps>
-  <Step title="Visit nolongerevil.com">
-    Open [https://nolongerevil.com](https://nolongerevil.com) in your web browser.
-  </Step>
-
-  <Step title="Create Account">
-    Click **"Sign Up"** and register using:
-
-    - Email and password
-    - Or social login (Google, GitHub, etc.)
-
-    You'll receive a verification email (check spam folder if needed).
-  </Step>
-
-  <Step title="Verify Email">
-    Click the verification link in your email to activate your account.
-  </Step>
-
-  <Step title="Access Dashboard">
-    Once verified, log in and you'll see your **Dashboard**.
-
-    Since you haven't linked any devices yet, you'll see:
-
-    **"No devices found"** with a prompt to enter an entry code.
-  </Step>
-</Steps>
+**Important:**
+- Keep the device plugged in via USB
+- Wait for the device to complete its boot sequence (this may take 3-4 minutes)
+- Do not disconnect or power off the device during this time
 
 ---
 
-## Step 7: Link Your Device
+## Step 7: Register Account
 
-The final step is linking your thermostat to your NoLongerEvil account.
+Once the device has fully rebooted:
 
-<Steps>
-  <Step title="Connect Thermostat to WiFi">
-    Before linking, ensure your thermostat is connected to WiFi:
+1. Visit **[https://nolongerevil.com](https://nolongerevil.com)** in your web browser
+2. **Register an account** (or sign in if you already have one)
+3. Navigate to your **Dashboard**
 
-    1. On the thermostat, go to **Settings → Network**
-    2. Select your WiFi network and enter the password
-    3. Wait for it to connect (you'll see a WiFi icon on the display)
-
-    <Note>
-      The thermostat needs internet access to communicate with No Longer Evil servers.
-    </Note>
-  </Step>
-
-  <Step title="Get Entry Code from Thermostat">
-    On your Nest device, navigate to:
-
-    **Settings → Nest App → Get Entry Code**
-
-    The device will display a **7-character entry code** (e.g., `A3XR7M2`).
-
-    <Warning>
-      **Entry codes expire after 1 hour.** If it expires, simply generate a new one.
-    </Warning>
-  </Step>
-
-  <Step title="Enter Code in Dashboard">
-    On the No Longer Evil dashboard:
-
-    1. Find the "Link Device" or "Enter Entry Code" input field
-    2. Type the 7-character code exactly as shown (case-sensitive)
-    3. Click **"Link Device"**
-  </Step>
-
-  <Step title="Device Linked!">
-    If successful, your thermostat will appear in the dashboard with its:
-
-    - Serial number
-    - Current temperature
-    - Heating/cooling status
-    - Last seen timestamp
-  </Step>
-</Steps>
+You will see a "No devices" screen that prompts you for an entry code.
 
 ---
 
-## Step 8: Verify Everything Works
+## Step 8: Link Your Device
 
-Let's make sure your thermostat is fully operational:
+To link your Nest device to your No Longer Evil account:
 
-<Steps>
-  <Step title="Check Dashboard Connection">
-    In the dashboard, verify you can see:
+1. On your Nest device, navigate to: **Settings → Nest App → Get Entry Code**
+2. The device will display a unique entry code
+3. Enter this code on the No Longer Evil dashboard
+4. Your device is now linked and ready to use!
 
-    - ✅ Current temperature updating in real-time
-    - ✅ Schedules
-    - ✅ Heating/cooling status
-  </Step>
+---
 
-  <Step title="Test Temperature Control">
-    Try changing the temperature:
+## Step 9: Reinstall on Wall
 
-    1. In the dashboard, adjust the target temperature
-    2. Watch the thermostat screen update
-    3. Verify the HVAC system responds (heat/cool turns on)
-  </Step>
+Once everything is working:
 
-  <Step title="Reinstall on Wall">
-    Once everything is working:
-
-    1. Align the Nest with the backplate on the wall
-    2. Push gently until it clicks into place
-    3. The device will reconnect to HVAC power and charge
-  </Step>
-</Steps>
+1. Align the Nest with the backplate on the wall
+2. Push gently until it clicks into place
+3. The device will reconnect to HVAC power and charge
 
 ---
 
 ## 🎉 Success!
 
 Your Nest Thermostat is now running No Longer Evil and connected to your account!
+
+---
+
+## What Gets Flashed
+
+The firmware installation process installs three components:
+
+1. **x-load.bin** - First-stage bootloader (X-Loader for OMAP)
+2. **u-boot.bin** - Second-stage bootloader (Das U-Boot) loaded at address 0x80100000
+3. **uImage** - Linux kernel image loaded at address 0x80A00000
+
+After flashing, the device jumps to execution at 0x80100000 (u-boot).
 
 ---
 
@@ -340,6 +194,20 @@ Your Nest Thermostat is now running No Longer Evil and connected to your account
     See [Network Issues](/hosted/troubleshooting#network-issues)
   </Accordion>
 </AccordionGroup>
+
+---
+
+## Credits & Acknowledgments
+
+This project builds upon the excellent work of several security researchers and developers:
+
+- **[grant-h](https://github.com/grant-h) / [ajb142](https://github.com/ajb142)** - [omap_loader](https://github.com/ajb142/omap_loader), the USB bootloader tool used to flash OMAP devices
+- **[exploiteers (GTVHacker)](https://github.com/exploiteers)** - Original research and development of the [Nest DFU attack](https://github.com/exploiteers/NestDFUAttack), which demonstrated the ability to flash custom firmware to Nest devices gen 1 & gen 2
+- **[FULU](https://bounties.fulu.org/)** and all bounty backers - For funding the [Nest Learning Thermostat Gen 1/2 bounty](https://bounties.fulu.org/bounties/nest-learning-thermostat-gen-1-2) and supporting the right-to-repair movement
+
+Without their groundbreaking research, open-source contributions, and advocacy for device ownership rights, this work would not be possible. Thank you!
+
+---
 
 <Card title="Get Help" icon="life-ring" href="https://discord.gg/AffeGaJ5XS">
   Join our Discord community or open a GitHub issue for assistance

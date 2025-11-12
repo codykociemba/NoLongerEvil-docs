@@ -63,12 +63,7 @@
       "group": "Self-Hosted (Advanced)",
       "pages": [
         "self-hosted/overview",
-        "self-hosted/prerequisites",
-        "self-hosted/infrastructure-setup",
-        "self-hosted/building-firmware",
-        "self-hosted/running-api-server",
-        "self-hosted/configuration-reference",
-        "self-hosted/troubleshooting"
+        "self-hosted/prerequisites"
       ]
     },
     {
