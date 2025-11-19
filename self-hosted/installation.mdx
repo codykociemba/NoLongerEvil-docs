@@ -1,0 +1,456 @@
+---
+title: Self-Hosted Installation Guide
+description: 'Complete guide to setting up your own No Longer Evil infrastructure'
+---
+
+<Warning>
+  **Before you begin:**
+
+  - Ensure you have a **Nest Generation 1 or Generation 2** thermostat ([check compatibility](/compatibility))
+  - This is for **advanced users** comfortable with command line, Docker, and networking
+  - You'll need a **server that can run 24/7** (Raspberry Pi, NAS, VPS, etc.)
+  - **Gen 1 requires device teardown** - only proceed if comfortable with electronics disassembly
+</Warning>
+
+## Overview
+
+The self-hosted installation sets up:
+1. **Firmware flashing tools** - To flash your Nest thermostat
+2. **Convex backend** - Database for device state (runs in Docker container)
+3. **API Server** - Backend server for thermostat communication (runs in Docker container)
+4. **Frontend** (optional) - Web dashboard for controlling your thermostats
+
+---
+
+## Step 1: Clone the Repository
+
+Clone the `open-source-prototype` branch:
+
+```bash
+git clone -b open-source-prototype https://github.com/codykociemba/NoLongerEvil-Thermostat.git
+cd NoLongerEvil-Thermostat
+```
+
+---
+
+## Step 2: Install Dependencies
+
+<Tabs>
+  <Tab title="Ubuntu/Debian">
+    ```bash
+    sudo apt-get update
+    sudo apt-get install build-essential libusb-1.0-0-dev gcc pkg-config docker.io nodejs npm
+    ```
+
+    **Start Docker:**
+    ```bash
+    sudo systemctl start docker
+    sudo systemctl enable docker
+    ```
+
+    **Add your user to docker group** (optional, to run docker without sudo):
+    ```bash
+    sudo usermod -aG docker $USER
+    ```
+    Log out and log back in for this to take effect.
+  </Tab>
+
+  <Tab title="macOS">
+    First, install Homebrew if you don't have it:
+    ```bash
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    ```
+
+    Then install dependencies:
+    ```bash
+    brew install libusb pkg-config docker nodejs
+    ```
+
+    <Note>
+      **Docker Desktop for Mac**: You'll also need to install Docker Desktop from [docker.com](https://www.docker.com/products/docker-desktop). Make sure it's running before proceeding.
+    </Note>
+  </Tab>
+</Tabs>
+
+---
+
+## Step 3: Run the Installer
+
+The installer will:
+- Build firmware flashing tools
+- Set up Docker containers for Convex backend and API server
+- Guide you through flashing your thermostat
+
+Run the installer:
+
+```bash
+chmod +x install.sh
+./install.sh
+```
+
+<Note>
+  The installer is interactive and will prompt you for configuration options. Follow the on-screen instructions carefully.
+</Note>
+
+---
+
+## Step 4: Configure Your Server
+
+After the installer completes, you'll have:
+
+**Running Docker Containers:**
+- **Convex Backend** - Database for storing device state
+- **API Server** - Handles thermostat communication
+
+**NOT Running:**
+- Frontend (web dashboard) - This is optional and must be started separately
+
+### Check Running Containers
+
+```bash
+docker ps
+```
+
+You should see containers for the Convex backend and API server.
+
+---
+
+## Step 5: Flash Your Thermostat
+
+The installer will guide you through flashing your thermostat. **The process differs for Gen 1 and Gen 2 - choose your device below:**
+
+<Tabs>
+  <Tab title="Generation 2 (Easy)">
+    ### Gen 2: Simple USB Method
+
+    Follow these steps carefully:
+
+    1. **Boot device on backplate** - Connect your Nest to the wall backplate and let it fully boot to the home screen
+    2. **Remove from wall** - Once fully booted, remove the Nest from its backplate
+    3. **Connect via USB** - Plug the Nest into your computer using a micro USB cable
+    4. **Reboot the device** - Press and hold down on the display for 10-15 seconds until the device reboots
+    5. **DFU mode active** - The installer will detect the device and begin flashing
+
+    The firmware installer will automatically flash the custom bootloader (x-load, u-boot) and kernel (uImage).
+  </Tab>
+
+  <Tab title="Generation 1 (Advanced)">
+    ### Gen 1: Teardown & Contact Bridge Method
+
+    <Warning>
+      **Gen 1 requires physical disassembly.** This process involves opening the device and manually bridging internal contacts. Only proceed if you're comfortable with electronics teardown.
+
+      **Credit:** Gen 1 DFU mode instructions adapted from [guyman70718's cuckoo_loader_gen1 guide](https://github.com/guyman70718/cuckoo_loader_gen1).
+    </Warning>
+
+    #### Tools Needed:
+    - Phillips screwdriver or prying tool
+    - Metal tweezers or similar conductive object
+    - Mini USB cable
+    - Non-conductive object for battery removal
+
+    #### Teardown Steps:
+
+    <Steps>
+      <Step title="Begin Disassembly">
+        Follow the [SparkFun Nest Thermostat Teardown Guide](https://learn.sparkfun.com/tutorials/nest-thermostat-teardown-/all) to open your Gen 1 thermostat.
+
+        You need to access the internal circuit board.
+
+        <Frame>
+          <img src="/public/nest-gen1-teardown-step1.jpg" alt="Gen 1 Nest internal components exposed" />
+        </Frame>
+      </Step>
+
+      <Step title="Disconnect Battery">
+        Unplug the battery by inserting your finger or a **NON-CONDUCTIVE object** underneath the battery wires. It lifts directly up.
+
+        **Important:** Do not use metal tools for this step.
+      </Step>
+
+      <Step title="Remove Metal Shield">
+        Detach the metal shield from the corner to expose the circuit board components and contact points.
+
+        <Frame>
+          <img src="/public/nest-gen1-teardown-step2.png" alt="Metal shield removal" />
+        </Frame>
+      </Step>
+
+      <Step title="Reconnect Battery">
+        Reconnect the battery while keeping the shield removed.
+
+        **Note:** The device will not boot without a battery connected.
+      </Step>
+
+      <Step title="Prepare for DFU Mode">
+        Ensure:
+        - Battery is reconnected
+        - Screen is off
+        - The installer is waiting for the device
+        - Mini USB cable is ready but not yet connected
+      </Step>
+
+      <Step title="Bridge Contacts & Connect USB">
+        Using metal tweezers or a conductive tool, **bridge the black and yellow resistor contacts** shown in the image below:
+
+        <Frame>
+          <img src="/public/nest-gen1-teardown-step3.png" alt="Contact bridging points for DFU mode" />
+        </Frame>
+
+        While holding the contacts bridged, connect the mini USB cable to the device.
+
+        The thermostat should boot into DFU mode and the installer will detect it.
+      </Step>
+
+      <Step title="Wait for Flash">
+        Once detected, the installer will automatically flash the custom bootloader and kernel.
+
+        Keep the device connected and don't disconnect until flashing completes.
+      </Step>
+    </Steps>
+
+    <Info>
+      **After successful flashing**, you can reassemble your Gen 1 thermostat by reversing the teardown steps. The device should boot normally with the new firmware.
+    </Info>
+  </Tab>
+</Tabs>
+
+---
+
+## Step 6: Set Up Frontend (Optional)
+
+The installer **does NOT** start the frontend automatically. The frontend is optional - you can use the hosted dashboard at nolongerevil.com if you prefer.
+
+### To run your own frontend:
+
+1. **Navigate to the frontend directory:**
+   ```bash
+   cd frontend
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+3. **Configure environment variables:**
+   Copy the example environment file and update the values:
+   ```bash
+   cp .env.example .env.local
+   ```
+
+   Then edit `.env.local` and configure the following variables:
+
+   ```bash
+   # Email Service (Optional)
+   # Leave blank if you don't need email notifications
+   RESEND_API_KEY=
+
+   # Encryption Key (REQUIRED)
+   # Generate a random string for production use
+   ENCRYPTION_KEY=CHANGE-THIS-KEY-IN-PRODUCTION
+
+   # Authentication (Optional)
+   # Uncomment these if you want to use Clerk for user authentication
+   #NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+   #CLERK_SECRET_KEY=
+
+   # Proxy Server Configuration (REQUIRED)
+   # This tells the frontend where your self-hosted API server is running
+   PROXY_HOST=192.168.1.100  # Replace with your server's local IP
+   PROXY_PORT=80              # 80 for HTTP, 443 for HTTPS
+   CONTROL_PORT=8081          # Port for the Control API (default: 8081)
+
+   # Logging (Optional)
+   LOG_DIR=./api_logs         # Where to store API logs
+
+   # WebSocket/Subscription Settings (Optional)
+   SUBSCRIBE_IDLE_MS=5000     # Idle timeout for long-polling subscriptions
+   MAX_SUBSCRIBERS_PER_DEVICE=100  # Max concurrent subscribers per device
+
+   # Frontend Backend URL (REQUIRED)
+   # This is the URL the frontend uses to communicate with the Control API
+   # Should point to the same server as PROXY_HOST (your API server)
+   NEXT_PUBLIC_BACKEND_URL=http://localhost:8081  # Or http://your-server-ip:8081
+   ```
+
+   **Key Variables to Update:**
+   - `ENCRYPTION_KEY`: Generate a random string (use `openssl rand -hex 32`)
+   - `PROXY_HOST`: Your server's IP address (e.g., `192.168.1.100`)
+   - `NEXTAUTH_URL`: Your frontend URL (e.g., `http://192.168.1.100:3000` for network access)
+   - `NEXT_PUBLIC_BACKEND_URL`: Your Control API URL - same server as `PROXY_HOST` (e.g., `http://192.168.1.100:8081`)
+
+4. **Run the development server:**
+   ```bash
+   npm run dev
+   ```
+
+5. **Access the dashboard:**
+   Open your browser to `http://localhost:3000`
+
+<Note>
+  **Production deployment**: For production use, run `npm run build` and serve the `dist/` folder with a web server like nginx or Apache.
+</Note>
+
+---
+
+## Step 7: Home Assistant Integration (Optional)
+
+If you use Home Assistant, you can integrate No Longer Evil using MQTT for automatic device discovery.
+
+### Configure MQTT Integration in Convex
+
+Add the following configuration to your Convex backend:
+
+**Basic MQTT (no authentication):**
+```javascript
+config: {
+  brokerUrl: "mqtt://10.0.0.1",  // Your MQTT broker IP
+  discoveryPrefix: "homeassistant",
+  homeAssistantDiscovery: true,
+  topicPrefix: "nolongerevil",
+}
+```
+
+**MQTT with authentication (recommended):**
+```javascript
+config: {
+  brokerUrl: "mqtt://10.0.0.1",  // Your MQTT broker IP
+  discoveryPrefix: "homeassistant",
+  homeAssistantDiscovery: true,
+  password: "your_mqtt_password",
+  topicPrefix: "nolongerevil",
+  username: "mqtt_user",
+}
+```
+
+**Where to add this:**
+1. Access your Convex dashboard
+2. Navigate to your backend configuration
+3. Add the MQTT integration config
+4. Update the values:
+   - `brokerUrl`: Your Home Assistant MQTT broker IP
+   - `username` & `password`: Your MQTT credentials (if authentication is enabled)
+
+**Requirements:**
+- Home Assistant must have MQTT broker configured (Mosquitto addon recommended)
+- MQTT broker must be accessible from your No Longer Evil server
+- If using authentication, create a dedicated MQTT user in Home Assistant
+
+<Note>
+  Once configured, your Nest thermostats will automatically appear in Home Assistant under MQTT devices with the prefix `nolongerevil`. They will support climate control, temperature monitoring, and scheduling through Home Assistant.
+</Note>
+
+---
+
+## Step 8: Configure Networking (For Remote Access)
+
+If you want to access your thermostat remotely (outside your local network):
+
+<Steps>
+  <Step title="Port Forwarding">
+    Configure your router to forward these ports to your server:
+    - **Port 443** - Thermostat Communication API (HTTPS)
+    - **Port 8081** - Control API (HTTP)
+    - **Port 5173** (or 80/443 if using nginx) - Frontend (if self-hosting)
+  </Step>
+
+  <Step title="DNS/DDNS Setup">
+    Set up a domain name or Dynamic DNS (DDNS) service to point to your public IP:
+    - Use a service like DuckDNS, No-IP, or your own domain
+    - Configure it to update automatically if your IP changes
+  </Step>
+
+  <Step title="SSL/TLS Certificates">
+    For secure HTTPS access, set up SSL certificates:
+    - Use Let's Encrypt with certbot
+    - Or use a reverse proxy like nginx with automatic certificate management
+
+    ```bash
+    sudo apt-get install certbot
+    sudo certbot certonly --standalone -d your-domain.com
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Step 8: Link Your Device
+
+Once your thermostat is flashed and connected to your server:
+
+1. On your Nest device, navigate to: **Settings → Nest App → Get Entry Code**
+2. The device will display a unique entry code
+3. Enter this code in your frontend dashboard (or the hosted dashboard if you're using that)
+4. Your device is now linked and ready to use!
+
+---
+
+## 🎉 Success!
+
+Your self-hosted No Longer Evil infrastructure is now running!
+
+**What's Running:**
+- ✅ Convex backend (Docker container)
+- ✅ API Server (Docker container)
+- ✅ Frontend (if you set it up)
+- ✅ Your thermostat is connected to YOUR server
+
+---
+
+## Managing Your Server
+
+### Start/Stop Containers
+
+**View running containers:**
+```bash
+docker ps
+```
+
+**Stop all containers:**
+```bash
+docker stop $(docker ps -q)
+```
+
+**Restart containers:**
+```bash
+docker restart $(docker ps -q)
+```
+
+### View Logs
+
+**API Server logs:**
+```bash
+docker logs <container-id>
+```
+
+**Follow logs in real-time:**
+```bash
+docker logs -f <container-id>
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Troubleshooting" icon="life-ring" href="/self-hosted/troubleshooting">
+    Solutions to common self-hosting issues
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/introduction">
+    Learn about the API endpoints
+  </Card>
+</CardGroup>
+
+---
+
+## Credits & Acknowledgments
+
+This project builds upon the excellent work of several security researchers and developers:
+
+- **[grant-h](https://github.com/grant-h) / [ajb142](https://github.com/ajb142)** - [omap_loader](https://github.com/ajb142/omap_loader), the USB bootloader tool used to flash OMAP devices
+- **[exploiteers (GTVHacker)](https://github.com/exploiteers)** - Original research and development of the [Nest DFU attack](https://github.com/exploiteers/NestDFUAttack)
+- **[guyman70718](https://github.com/guyman70718)** - [cuckoo_loader_gen1](https://github.com/guyman70718/cuckoo_loader_gen1) guide and teardown documentation for Gen 1 DFU mode access
+- **[FULU](https://bounties.fulu.org/)** and all bounty backers - For funding the [Nest Learning Thermostat Gen 1/2 bounty](https://bounties.fulu.org/bounties/nest-learning-thermostat-gen-1-2)
+
+Without their groundbreaking research, open-source contributions, and advocacy for device ownership rights, this work would not be possible. Thank you!

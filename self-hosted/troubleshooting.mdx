@@ -1,0 +1,447 @@
+---
+title: Self-Hosted Troubleshooting
+description: 'Solutions to common issues when self-hosting No Longer Evil'
+---
+
+## Installation Issues
+
+<AccordionGroup>
+  <Accordion title="Docker containers won't start" icon="docker">
+    **Symptoms**: `docker ps` shows no running containers
+
+    **Solutions**:
+    1. **Check Docker is running**:
+       ```bash
+       sudo systemctl status docker  # Linux
+       # or check Docker Desktop is running on macOS
+       ```
+
+    2. **View container logs**:
+       ```bash
+       docker logs <container-name>
+       ```
+
+    3. **Check for port conflicts**:
+       ```bash
+       sudo lsof -i :443  # Check if port 443 is in use
+       sudo lsof -i :8081 # Check if port 8081 is in use
+       ```
+
+    4. **Restart Docker**:
+       ```bash
+       sudo systemctl restart docker  # Linux
+       # or restart Docker Desktop on macOS
+       ```
+  </Accordion>
+
+  <Accordion title="Build dependencies failed to install" icon="exclamation-triangle">
+    **Ubuntu/Debian**:
+    ```bash
+    sudo apt-get update
+    sudo apt-get install --fix-missing build-essential libusb-1.0-0-dev gcc pkg-config
+    ```
+
+    **macOS**:
+    ```bash
+    # Make sure Homebrew is up to date
+    brew update
+    brew doctor
+    brew install libusb pkg-config
+    ```
+  </Accordion>
+
+  <Accordion title="install.sh: Permission denied" icon="lock">
+    **Solution**: Make the script executable
+    ```bash
+    chmod +x install.sh
+    ./install.sh
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Thermostat Flashing Issues
+
+<AccordionGroup>
+  <Accordion title="Device won't enter DFU mode (Gen 2)" icon="usb">
+    **Try these steps in order**:
+    1. **Boot device on backplate first** - Connect to wall mount and let it fully boot to home screen
+    2. **Remove from wall** - Once booted, remove from backplate
+    3. **Connect USB** - Use data-capable cable (not charge-only)
+    4. **Charge battery** - Ensure >50% battery
+    5. **Reboot** - Hold display for 10-15 seconds
+
+    See [DFU Mode Troubleshooting](/hosted/troubleshooting#dfu-mode-issues) for more details
+  </Accordion>
+
+  <Accordion title="Gen 1 contact bridging not working" icon="screwdriver-wrench">
+    **Common issues**:
+    - Contacts not held long enough - Keep bridging until USB connects
+    - Wrong contacts bridged - Double-check the image in the guide
+    - Battery disconnected - Device won't boot without battery
+    - Screen still on - Make sure screen is off before bridging
+
+    **Solution**: Try multiple times, ensuring:
+    - Battery is connected
+    - Screen is off
+    - Installer is waiting
+    - Bridge contacts, THEN connect USB while holding bridge
+  </Accordion>
+
+  <Accordion title="Installer doesn't detect device" icon="computer">
+    **Linux**:
+    1. **Check USB permissions**:
+       ```bash
+       sudo ./install.sh
+       ```
+
+    2. **Add udev rules**:
+       ```bash
+       echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="0451", MODE="0666"' | sudo tee /etc/udev/rules.d/99-omap.rules
+       sudo udevadm control --reload-rules
+       ```
+
+    **macOS**:
+    - Grant USB permissions in System Preferences → Security & Privacy
+
+    **Both**:
+    - Try different USB cable (must be data-capable)
+    - Try different USB port
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Server Connection Issues
+
+<AccordionGroup>
+  <Accordion title="Thermostat can't connect to server" icon="plug-circle-xmark">
+    **Check**:
+    1. **API server is running**:
+       ```bash
+       docker ps | grep api
+       curl http://localhost:443  # Should respond
+       ```
+
+    2. **Firewall allows connections**:
+       ```bash
+       sudo ufw allow 443  # Linux
+       sudo ufw allow 8081
+       ```
+
+    3. **Port forwarding configured** (if remote access):
+       - Check router settings
+       - Verify ports 443 and 8081 are forwarded to your server
+
+    4. **DNS resolves correctly** (if using domain):
+       ```bash
+       nslookup your-domain.com
+       ```
+
+    5. **Thermostat can reach server**:
+       - Check WiFi connection on thermostat
+       - Verify thermostat is on same network (for local-only setup)
+  </Accordion>
+
+  <Accordion title="Frontend can't connect to API" icon="browser">
+    **Check `.env.local` configuration**:
+    ```bash
+    cd frontend
+    cat .env.local
+    ```
+
+    Make sure:
+    - `VITE_API_URL` points to your API server (e.g., `http://192.168.1.100:8081`)
+    - `VITE_CONVEX_URL` has your Convex backend URL
+    - All required environment variables are set
+
+    **Test API connection manually**:
+    ```bash
+    curl http://your-server-ip:8081/api/devices
+    ```
+
+    **Restart frontend**:
+    ```bash
+    cd frontend
+    npm run dev
+    ```
+  </Accordion>
+
+  <Accordion title="SSL/TLS certificate errors" icon="shield-xmark">
+    **Self-signed certificates**:
+    If using self-signed certs, browsers will warn. You can:
+    - Use Let's Encrypt for free valid certificates
+    - Accept the browser warning (not recommended for production)
+
+    **Let's Encrypt setup**:
+    ```bash
+    sudo apt-get install certbot
+    sudo certbot certonly --standalone -d your-domain.com
+    ```
+
+    Then configure your server to use the certificates in `/etc/letsencrypt/live/your-domain.com/`
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Docker Issues
+
+<AccordionGroup>
+  <Accordion title="Containers keep restarting" icon="rotate">
+    **View logs to see why**:
+    ```bash
+    docker logs <container-name>
+    ```
+
+    **Common causes**:
+    - Port already in use
+    - Missing environment variables
+    - Insufficient resources (RAM/CPU)
+    - Database connection failed
+
+    **Check resource usage**:
+    ```bash
+    docker stats
+    ```
+  </Accordion>
+
+  <Accordion title="Can't access containers from host" icon="network-wired">
+    **Check port mappings**:
+    ```bash
+    docker ps
+    ```
+
+    Look for `0.0.0.0:443->443/tcp` and `0.0.0.0:8081->8081/tcp`
+
+    **If ports aren't mapped**, recreate containers with proper port mapping:
+    ```bash
+    docker run -p 443:443 -p 8081:8081 ...
+    ```
+  </Accordion>
+
+  <Accordion title="Out of disk space" icon="hard-drive">
+    **Check Docker disk usage**:
+    ```bash
+    docker system df
+    ```
+
+    **Clean up unused resources**:
+    ```bash
+    docker system prune -a
+    docker volume prune
+    ```
+
+    **Warning**: This will remove all stopped containers and unused images
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Database Issues
+
+<AccordionGroup>
+  <Accordion title="Convex backend not responding" icon="database">
+    **Check container status**:
+    ```bash
+    docker ps | grep convex
+    docker logs <convex-container-id>
+    ```
+
+    **Restart Convex container**:
+    ```bash
+    docker restart <convex-container-id>
+    ```
+
+    **Check connection from API server**:
+    - Verify `CONVEX_URL` environment variable in API container
+    - Test connection manually from API container
+  </Accordion>
+
+  <Accordion title="Device state not persisting" icon="floppy-disk">
+    **Check volume mounts**:
+    ```bash
+    docker inspect <convex-container-id> | grep Mounts
+    ```
+
+    Data should be persisted in a Docker volume or bind mount
+
+    **Backup important data**:
+    ```bash
+    docker cp <container-id>:/data ./backup
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Frontend Issues
+
+<AccordionGroup>
+  <Accordion title="npm install fails" icon="npm">
+    **Clear npm cache**:
+    ```bash
+    npm cache clean --force
+    rm -rf node_modules package-lock.json
+    npm install
+    ```
+
+    **Try different Node version**:
+    ```bash
+    # Using nvm
+    nvm install 18
+    nvm use 18
+    npm install
+    ```
+  </Accordion>
+
+  <Accordion title="Build fails" icon="hammer">
+    **Check for errors**:
+    ```bash
+    npm run build
+    ```
+
+    **Common issues**:
+    - Missing environment variables in `.env.local`
+    - TypeScript errors
+    - Dependency conflicts
+
+    **Clean build**:
+    ```bash
+    rm -rf dist node_modules
+    npm install
+    npm run build
+    ```
+  </Accordion>
+
+  <Accordion title="Hot reload not working" icon="arrows-rotate">
+    **Restart dev server**:
+    ```bash
+    # Kill the dev server (Ctrl+C)
+    npm run dev
+    ```
+
+    **Check Vite config**:
+    - Make sure `vite.config.ts` has proper server settings
+    - Try different port if 5173 is in use
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Network & Remote Access
+
+<AccordionGroup>
+  <Accordion title="Can't access server remotely" icon="globe">
+    **Check these in order**:
+
+    1. **Port forwarding configured**:
+       - Log into your router
+       - Forward ports 443, 8081 to your server's local IP
+       - Verify forwards are active
+
+    2. **Firewall allows traffic**:
+       ```bash
+       sudo ufw status
+       sudo ufw allow 443
+       sudo ufw allow 8081
+       ```
+
+    3. **Public IP correct**:
+       ```bash
+       curl ifconfig.me  # Shows your public IP
+       ```
+
+    4. **Dynamic DNS working** (if using DDNS):
+       - Verify DNS record points to current IP
+       - Check DDNS client is running and updating
+
+    5. **ISP not blocking ports**:
+       - Some ISPs block port 443/80
+       - Try alternative ports or contact ISP
+  </Accordion>
+
+  <Accordion title="HTTPS not working" icon="lock">
+    **Check certificate**:
+    ```bash
+    sudo certbot certificates
+    ```
+
+    **Renew if expired**:
+    ```bash
+    sudo certbot renew
+    ```
+
+    **Test HTTPS endpoint**:
+    ```bash
+    curl -k https://your-domain.com  # -k skips cert validation
+    ```
+
+    **Common issues**:
+    - Certificate not installed correctly
+    - Server not configured for HTTPS
+    - Port 443 not open
+    - Domain doesn't match certificate
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Performance Issues
+
+<AccordionGroup>
+  <Accordion title="Server running slow" icon="gauge-high">
+    **Check resource usage**:
+    ```bash
+    top
+    docker stats
+    df -h  # Check disk space
+    ```
+
+    **Solutions**:
+    - Allocate more resources to Docker
+    - Optimize database queries
+    - Reduce logging verbosity
+    - Use faster storage (SSD vs HDD)
+  </Accordion>
+
+  <Accordion title="High memory usage" icon="memory">
+    **Check which container is using memory**:
+    ```bash
+    docker stats
+    ```
+
+    **Limit container memory**:
+    ```bash
+    docker update --memory="512m" <container-id>
+    ```
+
+    **Restart containers to free memory**:
+    ```bash
+    docker restart $(docker ps -q)
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Still Having Issues?
+
+<CardGroup cols={2}>
+  <Card title="Join Discord" icon="discord" href="https://discord.gg/AffeGaJ5XS">
+    Ask the self-hosting community for help
+  </Card>
+  <Card title="GitHub Issues" icon="github" href="https://github.com/codykociemba/NoLongerEvil-Thermostat/issues">
+    Report bugs or check existing issues
+  </Card>
+  <Card title="Check Logs" icon="file-lines">
+    Always check Docker logs first:
+    ```
+    docker logs <container-name>
+    ```
+  </Card>
+  <Card title="Hosted Service" icon="cloud" href="/hosted/overview">
+    Consider using the hosted service if self-hosting is too complex
+  </Card>
+</CardGroup>

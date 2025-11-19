@@ -6,110 +6,229 @@ description: 'Step-by-step instructions to flash firmware and set up your Nest t
 <Warning>
   **Before you begin:**
 
-  - Ensure you have a **Nest Generation 2** thermostat ([check compatibility](/compatibility))
+  - Ensure you have a **Nest Generation 1 or Generation 2** thermostat ([check compatibility](/compatibility))
   - Do NOT use this on a thermostat critical for heating/cooling (experimental software)
-  - This will brick your device if done incorrectly - proceed at your own risk
+  - **Gen 1 requires device teardown** - only proceed if comfortable with electronics disassembly
 </Warning>
 
-## Prerequisites
+## What You'll Need
 
-You'll need:
-- **Linux computer** or **macOS**
-  - ⚠️ **Windows is NOT supported** (including WSL)
-- **Nest Generation 2 thermostat**
-  - Check for green bubble level on back plate (not blue)
-- **Micro USB cable** (data-capable, not charging-only)
-- **Build tools and dependencies** installed
+<CardGroup cols={2}>
+  <Card title="Compatible Device" icon="temperature-half">
+    Nest Generation 1 or 2 thermostat
+
+    [Check compatibility →](/compatibility)
+  </Card>
+  <Card title="Computer" icon="laptop">
+    Linux or macOS
+
+    ⚠️ Windows NOT supported (including WSL)
+  </Card>
+  <Card title="USB Cable" icon="usb">
+    Mini USB (Gen 1) or Micro USB (Gen 2)
+
+    Must be data-capable, not charge-only
+  </Card>
+  <Card title="For Gen 1 Only" icon="screwdriver-wrench">
+    Phillips screwdriver
+
+    Metal tweezers/conductive tool
+  </Card>
+</CardGroup>
 
 ---
 
-## Step 1: Clone Repository
+## Step 1: Download Firmware Installer
 
-Clone the repository:
+Download the firmware installer for your operating system:
 
-```bash
-git clone https://github.com/codykociemba/NoLongerEvil-Thermostat.git
-cd NoLongerEvil-Thermostat
-```
+<CardGroup cols={2}>
+  <Card title="Download for macOS" icon="apple" href="https://github.com/codykociemba/NoLongerEvil-Thermostat/releases/download/v1.0.0/nolongerevil-installer-mac-x64.zip">
+    **macOS (Universal)**
+
+    Intel & Apple Silicon (M1/M2/M3/M4)
+
+    Click to download
+  </Card>
+  <Card title="Download for Linux" icon="linux" href="https://github.com/codykociemba/NoLongerEvil-Thermostat/releases/download/v1.0.0/nolongerevil-installer-linux-x86_64.AppImage">
+    **Linux (x64)**
+
+    Ubuntu, Debian, Fedora, etc.
+
+    Click to download
+  </Card>
+</CardGroup>
 
 ---
 
-## Step 2: Install Dependencies
+## Step 2: Prepare the Installer
 
 <Tabs>
-  <Tab title="Ubuntu/Debian">
-    ```bash
-    sudo apt-get update
-    sudo apt-get install build-essential libusb-1.0-0-dev gcc pkg-config
-    ```
+  <Tab title="Linux (AppImage)">
+    1. **Make the AppImage executable**:
+       ```bash
+       chmod +x NoLongerEvil-*.AppImage
+       ```
+
+    2. **Run the AppImage**:
+       ```bash
+       ./NoLongerEvil-*.AppImage
+       ```
+
+    <Note>
+      AppImage files are self-contained and don't need extraction. You can also double-click the file in your file manager after making it executable.
+    </Note>
   </Tab>
+
   <Tab title="macOS">
-    First, install Xcode Command Line Tools:
+    1. **Extract the downloaded .zip file**:
+       - Double-click the .zip file in Finder
 
-    ```bash
-    xcode-select --install
-    ```
+    2. **Move the app to Applications** (optional but recommended):
+       - Drag NoLongerEvil.app to your Applications folder
 
-    Then install libusb using Homebrew:
+    3. **Open the app**:
+       - Double-click NoLongerEvil.app
+       - If macOS blocks it, right-click → Open, then click Open again
 
-    ```bash
-    # Install Homebrew if you don't have it
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-    # Install libusb and pkg-config
-    brew install libusb pkg-config
-    ```
+    <Note>
+      **First time opening**: macOS may show a security warning. Go to System Preferences → Security & Privacy and click "Open Anyway" if needed.
+    </Note>
   </Tab>
 </Tabs>
 
 ---
 
-## Step 3: Build omap_loader
+## Step 3: Launch the Installer
 
-Build the USB flashing tool:
+1. **Open the NoLongerEvil installer app**
+   - Linux: Run `./NoLongerEvil-*.AppImage` or double-click the AppImage file
+   - macOS: Double-click NoLongerEvil.app
 
-```bash
-chmod +x build.sh
-./build.sh
-```
+2. **The installer GUI will open** - Follow the on-screen instructions in the installer
 
-The build script will automatically detect your operating system (Linux, macOS, or Windows) and build the appropriate binary.
-
----
-
-## Step 4: Start the Installer
-
-**IMPORTANT**: Start the installer **BEFORE** rebooting your thermostat into DFU mode.
-
-```bash
-chmod +x install.sh
-./install.sh
-```
+3. **The installer will guide you through the process**, including:
+   - Selecting your device generation (Gen 1 or Gen 2)
+   - Entering DFU mode
+   - Flashing the firmware
+   - Setting up your device
 
 <Note>
-  **For macOS users:** You may need to grant USB permissions. If you encounter permission issues, check System Preferences → Security & Privacy.
+  **USB Permissions**: You may be prompted to grant USB permissions:
+  - **macOS**: System Preferences → Security & Privacy → Allow USB access
+  - **Linux**: May need to run with `sudo` or add udev rules if you get permission errors
 </Note>
 
-The script will wait for the device to enter DFU mode.
+<Info>
+  The rest of this guide provides detailed manual instructions for each step. However, **the installer app will walk you through everything** - you can simply follow the GUI prompts instead of reading the steps below.
+</Info>
 
 ---
 
-## Step 5: Enter DFU Mode
+## Step 4: Enter DFU Mode
 
-Follow these steps carefully:
+The process differs between Generation 1 and Generation 2 devices. **Choose the instructions for your device:**
 
-1. **Charge the device** - Ensure your Nest Thermostat is properly charged (at least 50% battery recommended)
-2. **Remove from wall** - Remove the Nest from its back plate/wall mount
-3. **Connect via USB** - Plug the Nest into your computer using a micro USB cable
-4. **Wait for the installer** - Make sure the `install.sh` script is running and waiting
-5. **Reboot the device** - Press and hold down on the display for 10-15 seconds until the device reboots
-6. **DFU mode active** - Once it reboots, the device will enter DFU mode and the installer script will recognize it and begin flashing
+<Tabs>
+  <Tab title="Generation 2 (Easy)">
+    ### Gen 2: Simple Reboot Method
 
-The firmware installer will automatically detect the device and flash the custom bootloader (x-load, u-boot) and kernel (uImage).
+    Follow these steps carefully:
+
+    1. **Boot device on backplate** - IMPORTANT: Connect your Nest to the wall backplate and let it fully boot to the home screen. This ensures the battery is charged and the device is ready.
+    2. **Remove from wall** - Once fully booted, remove the Nest from its back plate/wall mount
+    3. **Start the installer** - Make sure the `install.sh` script is running and waiting for the device
+    4. **Connect via USB** - Plug the Nest into your computer using a micro USB cable
+    5. **Reboot the device** - Press and hold down on the display for 10-15 seconds until the device reboots
+    6. **DFU mode active** - Once it reboots, the device will enter DFU mode and the installer script will recognize it and begin flashing
+
+    The firmware installer will automatically detect the device and flash the custom bootloader (x-load, u-boot) and kernel (uImage).
+  </Tab>
+
+  <Tab title="Generation 1 (Advanced)">
+    ### Gen 1: Teardown & Contact Bridge Method
+
+    <Warning>
+      **Gen 1 requires physical disassembly.** This process involves opening the device and manually bridging internal contacts. Only proceed if you're comfortable with electronics teardown.
+
+      **Credit:** Gen 1 DFU mode instructions adapted from [guyman70718's cuckoo_loader_gen1 guide](https://github.com/guyman70718/cuckoo_loader_gen1).
+    </Warning>
+
+    #### Tools Needed:
+    - Phillips screwdriver or prying tool
+    - Metal tweezers or similar conductive object
+    - Mini USB cable
+    - Non-conductive object for battery removal
+
+    #### Teardown Steps:
+
+    <Steps>
+      <Step title="Begin Disassembly">
+        Follow the [SparkFun Nest Thermostat Teardown Guide](https://learn.sparkfun.com/tutorials/nest-thermostat-teardown-/all) to open your Gen 1 thermostat.
+
+        You need to access the internal circuit board.
+
+        <Frame>
+          <img src="/public/nest-gen1-teardown-step1.jpg" alt="Gen 1 Nest internal components exposed" />
+        </Frame>
+      </Step>
+
+      <Step title="Disconnect Battery">
+        Unplug the battery by inserting your finger or a **NON-CONDUCTIVE object** underneath the battery wires. It lifts directly up.
+
+        **Important:** Do not use metal tools for this step.
+      </Step>
+
+      <Step title="Remove Metal Shield">
+        Detach the metal shield from the corner to expose the circuit board components and contact points.
+
+        <Frame>
+          <img src="/public/nest-gen1-teardown-step2.png" alt="Metal shield removal" />
+        </Frame>
+      </Step>
+
+      <Step title="Reconnect Battery">
+        Reconnect the battery while keeping the shield removed.
+
+        **Note:** The device will not boot without a battery connected.
+      </Step>
+
+      <Step title="Prepare for DFU Mode">
+        Ensure:
+        - Battery is reconnected
+        - Screen is off
+        - The `./install.sh` script is running and waiting on your computer
+        - Mini USB cable is ready but not yet connected
+      </Step>
+
+      <Step title="Bridge Contacts & Connect USB">
+        Using metal tweezers or a conductive tool, **bridge the black and yellow resistor contacts** shown in the image below:
+
+        <Frame>
+          <img src="/public/nest-gen1-teardown-step3.png" alt="Contact bridging points for DFU mode" />
+        </Frame>
+
+        While holding the contacts bridged, connect the mini USB cable to the device.
+
+        The thermostat should boot into DFU mode and the installer will detect it.
+      </Step>
+
+      <Step title="Wait for Flash">
+        Once detected, the firmware installer will automatically flash the custom bootloader and kernel.
+
+        Keep the device connected and don't disconnect until flashing completes.
+      </Step>
+    </Steps>
+
+    <Info>
+      **After successful flashing**, you can reassemble your Gen 1 thermostat by reversing the teardown steps. The device should boot normally with the new firmware.
+    </Info>
+  </Tab>
+</Tabs>
 
 ---
 
-## Step 6: Wait for Boot
+## Step 5: Wait for Boot
 
 After the firmware is flashed successfully, you should see the No Longer Evil logo on the device screen.
 
@@ -120,7 +239,7 @@ After the firmware is flashed successfully, you should see the No Longer Evil lo
 
 ---
 
-## Step 7: Register Account
+## Step 6: Register Account
 
 Once the device has fully rebooted:
 
@@ -132,7 +251,7 @@ You will see a "No devices" screen that prompts you for an entry code.
 
 ---
 
-## Step 8: Link Your Device
+## Step 7: Link Your Device
 
 To link your Nest device to your No Longer Evil account:
 
@@ -143,7 +262,7 @@ To link your Nest device to your No Longer Evil account:
 
 ---
 
-## Step 9: Reinstall on Wall
+## Step 8: Reinstall on Wall
 
 Once everything is working:
 
@@ -203,6 +322,7 @@ This project builds upon the excellent work of several security researchers and 
 
 - **[grant-h](https://github.com/grant-h) / [ajb142](https://github.com/ajb142)** - [omap_loader](https://github.com/ajb142/omap_loader), the USB bootloader tool used to flash OMAP devices
 - **[exploiteers (GTVHacker)](https://github.com/exploiteers)** - Original research and development of the [Nest DFU attack](https://github.com/exploiteers/NestDFUAttack), which demonstrated the ability to flash custom firmware to Nest devices gen 1 & gen 2
+- **[guyman70718](https://github.com/guyman70718)** - [cuckoo_loader_gen1](https://github.com/guyman70718/cuckoo_loader_gen1) guide and teardown documentation for Gen 1 DFU mode access
 - **[FULU](https://bounties.fulu.org/)** and all bounty backers - For funding the [Nest Learning Thermostat Gen 1/2 bounty](https://bounties.fulu.org/bounties/nest-learning-thermostat-gen-1-2) and supporting the right-to-repair movement
 
 Without their groundbreaking research, open-source contributions, and advocacy for device ownership rights, this work would not be possible. Thank you!

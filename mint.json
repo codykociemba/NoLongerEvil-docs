@@ -46,6 +46,7 @@
       "pages": [
         "introduction",
         "compatibility",
+        "why-google-blocks",
         "choose-your-path"
       ]
     },
@@ -62,7 +63,9 @@
       "group": "Self-Hosted (Advanced)",
       "pages": [
         "self-hosted/overview",
-        "self-hosted/prerequisites"
+        "self-hosted/prerequisites",
+        "self-hosted/installation",
+        "self-hosted/troubleshooting"
       ]
     },
     {

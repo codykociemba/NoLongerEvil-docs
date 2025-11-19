@@ -10,23 +10,29 @@ description: 'Solutions to common issues with hosted service setup'
     **Symptoms**: Holding display doesn't trigger installer detection
 
     **Solutions**:
-    1. **Charge the battery**: DFU mode requires sufficient power (>50%)
+    1. **IMPORTANT - Boot device on backplate first** (Gen 2):
+       - Connect device to wall backplate and let it fully boot
+       - Wait until display shows normal home screen
+       - Then remove from backplate to begin DFU process
+       - This ensures battery is properly charged and device is ready
+
+    2. **Charge the battery**: DFU mode requires sufficient power (>50%)
        - Check: Settings → Technical Info → Battery
        - Charge on wall mount for 1-2 hours if low
 
-    2. **Try a different hold duration**:
+    3. **Try a different hold duration**:
        - Some devices need 10 seconds, others 15
        - Try holding for 20 seconds to be safe
 
-    3. **Ensure installer is running FIRST**:
+    4. **Ensure installer is running FIRST**:
        - Start the installer app BEFORE rebooting
        - Wait for "Waiting for device..." message
 
-    4. **Try a different USB cable**:
+    5. **Try a different USB cable**:
        - Some cables are charging-only (no data pins)
        - Use a cable that works for file transfer
 
-    5. **Try a different USB port**:
+    6. **Try a different USB port**:
        - Some ports don't provide enough power
        - Try a USB 2.0 port instead of USB 3.0
   </Accordion>
@@ -35,28 +41,24 @@ description: 'Solutions to common issues with hosted service setup'
     **Symptoms**: Thermostat reboots but installer still says "Waiting..."
 
     **Solutions**:
-    1. **Check USB drivers** (Windows):
-       - Device Manager → Universal Serial Bus devices
-       - Look for "OMAP" or unknown devices
-       - Install OMAP drivers if needed
-
-    2. **Grant USB permissions** (macOS):
+    1. **Grant USB permissions** (macOS):
        - System Preferences → Security & Privacy
        - Allow No Longer Evil app USB access
 
-    3. **Run with sudo** (Linux):
+    2. **Run with sudo** (Linux):
        ```bash
-       sudo ./NoLongerEvil.AppImage
+       sudo ./install.sh
        ```
 
-    4. **Add udev rules** (Linux):
+    3. **Add udev rules** (Linux):
        ```bash
        echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="0451", MODE="0666"' | sudo tee /etc/udev/rules.d/99-omap.rules
        sudo udevadm control --reload-rules
        ```
 
-    5. **Try a different computer**:
+    4. **Try a different computer**:
        - Some computers have USB compatibility issues
+       - Ensure you're using Linux or macOS (Windows/WSL not supported)
        - Try a different OS if possible
   </Accordion>
 
@@ -106,7 +108,6 @@ description: 'Solutions to common issues with hosted service setup'
     4. **OS permissions**:
        - **macOS**: Security & Privacy → allow USB
        - **Linux**: Run with sudo or add udev rules
-       - **Windows**: Check Device Manager for unknown devices
   </Accordion>
 
   <Accordion title="Device appears then disappears" icon="eye-slash">
@@ -146,10 +147,7 @@ description: 'Solutions to common issues with hosted service setup'
        - Some antivirus software blocks low-level USB access
        - Whitelist NoLongerEvil installer
 
-    4. **Run installer as administrator** (Windows):
-       - Right-click → Run as administrator
-
-    5. **Download fresh firmware**:
+    4. **Download fresh firmware**:
        - Corrupt download can cause failures
        - Delete and redownload installer
   </Accordion>

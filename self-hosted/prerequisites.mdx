@@ -1,10 +1,103 @@
 ---
-title: Prerequisites
-description: 'Requirements and preparation for self-hosting'
+title: Self-Hosted Prerequisites
+description: 'Everything you need before starting self-hosted installation'
 ---
 
-<Info>
-  **Documentation Coming Soon!**
+<Warning>
+  **Self-hosting is for advanced users.** Review all requirements carefully before proceeding. If this seems overwhelming, consider using the [hosted service](/hosted/overview) instead.
+</Warning>
 
-  Self-hosted setup documentation is currently in development. For early access, check the [open-source-prototype branch](https://github.com/codykociemba/NoLongerEvil-Thermostat/tree/open-source-prototype) on GitHub.
-</Info>
+## Hardware Requirements
+
+### Server Hardware
+
+You need a machine that can run 24/7 to host the No Longer Evil infrastructure:
+
+**Minimum Specs:**
+- **CPU**: 2 cores (x64 or ARM64)
+- **RAM**: 2GB minimum, 4GB recommended
+- **Storage**: 10GB free space minimum
+- **Network**: Ethernet or WiFi (Ethernet preferred)
+
+**Recommended Options:**
+- Raspberry Pi 4 (4GB+ RAM)
+- NAS device (Synology, QNAP)
+- VPS/Cloud server (DigitalOcean, AWS, Linode)
+- Home server or repurposed PC
+
+---
+
+## Software Requirements
+
+### On Your Server
+
+<AccordionGroup>
+  <Accordion title="Docker" icon="docker">
+    **Required** - Runs containers for Convex backend and API server
+
+    - Linux: `sudo apt-get install docker.io`
+    - macOS: Install Docker Desktop
+
+    Check: `docker --version`
+  </Accordion>
+
+  <Accordion title="Build Tools & libusb" icon="hammer">
+    **Required** - Compiles firmware flasher
+
+    Linux:
+    ```bash
+    sudo apt-get install build-essential libusb-1.0-0-dev gcc pkg-config
+    ```
+
+    macOS:
+    ```bash
+    brew install libusb pkg-config
+    ```
+  </Accordion>
+
+  <Accordion title="Node.js & npm" icon="node-js">
+    **Optional** - Only if running your own frontend
+
+    - Version 18 or higher
+    - Check: `node --version`
+  </Accordion>
+</AccordionGroup>
+
+### On Your Flashing Computer
+
+- **OS**: Linux or macOS (Windows/WSL NOT supported)
+- **USB Port**: For connecting thermostat
+- **USB Cable**: Mini USB (Gen 1) or Micro USB (Gen 2)
+
+---
+
+## Technical Skills
+
+You should be comfortable with:
+
+- **Command line** navigation and commands
+- **Docker** basics (containers, logs, troubleshooting)
+- **Networking** (port forwarding, firewalls, DNS)
+- **Linux/Unix** basics (permissions, services, logs)
+
+---
+
+## Network Setup
+
+### Required
+- Stable internet connection
+- Router access (for port forwarding if needed)
+- Static local IP or DHCP reservation for server
+
+### For Remote Access (Optional)
+- Public IP or DDNS service
+- Port forwarding capability
+- SSL certificates (Let's Encrypt recommended)
+
+---
+
+## Ready to Install?
+
+<Card title="Installation Guide" icon="rocket" href="/self-hosted/installation">
+  Start the installation process
+</Card>

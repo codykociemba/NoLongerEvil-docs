@@ -22,10 +22,22 @@ description: 'Common questions about No Longer Evil'
     Note: We don't provide Google's firmware. You'd need to obtain it separately or contact Nest support.
   </Accordion>
 
-  <Accordion title="Does this work with Nest Gen 1 or Gen 3?" icon="question">
-    **Not yet.** Currently only **Generation 2** is supported.
+  <Accordion title="Which Nest generations are supported?" icon="question">
+    **Generation 1 and Generation 2** are fully supported.
 
-    Gen 1 and Gen 3 support is under development. Join our [Discord](https://discord.gg/AffeGaJ5XS) for updates.
+    - **Gen 2**: Simple USB connection (15-30 minutes)
+    - **Gen 1**: Requires device teardown and contact bridging (30-45 minutes)
+    - **Gen 3**: Not yet supported - under development
+
+    Join our [Discord](https://discord.gg/AffeGaJ5XS) for Gen 3 updates.
+  </Accordion>
+
+  <Accordion title="What operating systems are supported?" icon="laptop">
+    **Linux (recommended) or macOS only.**
+
+    **Windows is NOT supported**, including WSL (Windows Subsystem for Linux).
+
+    The firmware flashing tools require native Linux or macOS USB drivers that don't work properly in Windows environments.
   </Accordion>
 
   <Accordion title="Is my data safe?" icon="shield-check">
@@ -88,14 +100,31 @@ description: 'Common questions about No Longer Evil'
     See [Entry Code Troubleshooting](/hosted/troubleshooting#entry-code-issues)
   </Accordion>
 
-  <Accordion title="Can't enter DFU mode" icon="usb">
-    **Try**:
-    - Charge battery to >50%
-    - Use different USB cable (data-capable, not charge-only)
-    - Hold display for full 15 seconds
-    - Start installer BEFORE rebooting device
+  <Accordion title="Can't enter DFU mode (Gen 2)" icon="usb">
+    **Try these steps in order**:
+    1. **Boot device on backplate first** - Connect to wall mount and let it fully boot to home screen
+    2. **Remove from wall** - Once booted, remove from backplate
+    3. **Start installer** - Run `./install.sh` and wait for "Waiting for device..."
+    4. **Connect USB** - Use data-capable cable (not charge-only)
+    5. **Charge battery** - Ensure >50% battery
+    6. **Reboot** - Hold display for 10-15 seconds
 
     See [DFU Mode Troubleshooting](/hosted/troubleshooting#dfu-mode-issues)
+  </Accordion>
+
+  <Accordion title="Gen 1 teardown seems difficult" icon="screwdriver-wrench">
+    **Gen 1 requires device disassembly** which is more complex than Gen 2.
+
+    **What you need**:
+    - Phillips screwdriver or prying tool
+    - Metal tweezers (to bridge contacts)
+    - Patience and steady hands
+
+    If you're not comfortable with electronics teardown, consider:
+    - Getting a Gen 2 device instead (easier to flash)
+    - Asking for help in our [Discord community](https://discord.gg/AffeGaJ5XS)
+
+    Full instructions with images: [Gen 1 Installation Guide](/hosted/installation#generation-1-advanced)
   </Accordion>
 </AccordionGroup>
 

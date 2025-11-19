@@ -3,10 +3,160 @@ title: Self-Hosted Overview
 description: 'Run your own No Longer Evil infrastructure for complete control'
 ---
 
-<Info>
-  **Self-Hosted Documentation Coming Soon!**
+## What is Self-Hosting?
 
-  We're currently finalizing the self-hosted setup documentation and tooling. The open-source prototype is available on GitHub, but full documentation will be released shortly.
+Self-hosting means running your own No Longer Evil infrastructure on your own server. Your thermostat connects to **your server**, not the hosted service at nolongerevil.com.
 
-  **Want to get started now?** Check out the [open-source-prototype branch](https://github.com/codykociemba/NoLongerEvil-Thermostat/tree/open-source-prototype) on GitHub.
-</Info>
+<Warning>
+  **Advanced Users Only**: Self-hosting requires technical troubleshooting skills with command line, Docker, and networking. If you're not comfortable with these, we recommend using the [hosted service](/hosted/overview) instead.
+</Warning>
+
+## How It Works
+
+Self-hosting No Longer Evil involves running your own infrastructure stack instead of relying on the hosted service:
+
+<Steps>
+  <Step title="Run the Installer">
+    Clone the repository and run `install.sh`, which sets up firmware flashing tools and guides you through server configuration.
+  </Step>
+  <Step title="Docker Containers Start">
+    The installer launches Docker containers for:
+    - **Convex Backend** - Database for storing device state, schedules, and configuration
+    - **API Server** - Handles communication with your Nest thermostat (replicates Google's API)
+  </Step>
+  <Step title="Flash Your Thermostat">
+    Use the firmware flashing tools to flash custom firmware to your Nest Gen 1 or Gen 2 thermostat via USB. The firmware redirects all traffic from Google servers to **your server**.
+  </Step>
+  <Step title="Thermostat Connects to Your Server">
+    Once flashed, your thermostat connects to your self-hosted API server instead of Google's servers. All communication stays within your infrastructure.
+  </Step>
+  <Step title="Optional: Set Up Frontend">
+    The installer does NOT start a frontend automatically. You can:
+    - Run your own frontend locally (`cd frontend && npm install && npm run dev`)
+    - Use the hosted dashboard at nolongerevil.com (connects to your self-hosted API)
+    - Build custom integrations using the API
+  </Step>
+  <Step title="Control Your Thermostat">
+    Access your thermostat through your frontend, Home Assistant (via MQTT), or directly through the API.
+  </Step>
+</Steps>
+
+<Note>
+  **Key Difference from Hosted**: You're responsible for running the API server, database, and optional frontend. The hosted service runs all of this for you.
+</Note>
+
+## What You'll Need
+
+<CardGroup cols={2}>
+  <Card title="Server Hardware" icon="server">
+    Raspberry Pi, NAS, VPS, home server, or cloud VM that can run 24/7
+  </Card>
+  <Card title="Nest Gen 1 or Gen 2" icon="temperature-half">
+    Compatible thermostat
+
+    [Check compatibility →](/compatibility)
+  </Card>
+  <Card title="Technical Skills" icon="code">
+    Command line, Docker, networking, and troubleshooting
+  </Card>
+  <Card title="Computer for Flashing" icon="laptop">
+    Linux or macOS (Windows/WSL not supported)
+  </Card>
+  <Card title="Time Commitment" icon="clock">
+    2-4 hours for initial setup + ongoing maintenance
+  </Card>
+  <Card title="Networking Knowledge" icon="network-wired">
+    Port forwarding, DNS, SSL/TLS certificates (for remote access)
+  </Card>
+</CardGroup>
+
+---
+
+## Components You'll Run
+
+When self-hosting, you're responsible for running and maintaining:
+
+<CardGroup cols={2}>
+  <Card title="API Server (Port 443)" icon="server">
+    Handles thermostat communication
+
+    Replicates Google's Nest API
+  </Card>
+  <Card title="Control API (Port 8081)" icon="tower-broadcast">
+    Provides control interface
+
+    For dashboards and automation
+  </Card>
+  <Card title="Database (Convex)" icon="database">
+    Stores device state
+
+    Configuration and logs
+  </Card>
+  <Card title="Frontend (Optional)" icon="browser">
+    Web dashboard
+
+    Can use hosted version instead
+  </Card>
+</CardGroup>
+
+---
+
+## Self-Hosted vs Hosted Service
+
+<AccordionGroup>
+  <Accordion title="When to Choose Self-Hosted" icon="server">
+    **Choose self-hosting if you:**
+    - Want complete data ownership and privacy
+    - Need the system to run independently of any external service
+    - Want to customize or extend the functionality
+    - Are comfortable with server administration and troubleshooting
+    - Want to learn how the system works internally
+    - Need local-only network operation
+  </Accordion>
+
+  <Accordion title="When to Choose Hosted Service" icon="cloud">
+    **Choose the hosted service if you:**
+    - Want a plug-and-play solution with no server setup
+    - Don't want to manage infrastructure and updates
+    - Need something that "just works" with minimal maintenance
+    - Don't have 24/7 server hardware available
+    - Are not comfortable with command line and networking
+    - Want automatic updates and improvements
+
+    [Learn about hosted service →](/hosted/overview)
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Ready to Get Started?
+
+<CardGroup cols={2}>
+  <Card
+    title="Prerequisites"
+    icon="list-check"
+    href="/self-hosted/prerequisites"
+  >
+    **Review requirements** before starting installation
+  </Card>
+  <Card
+    title="Installation Guide"
+    icon="screwdriver-wrench"
+    href="/self-hosted/installation"
+  >
+    **Step-by-step instructions** to set up your self-hosted infrastructure
+  </Card>
+</CardGroup>
+
+---
+
+## Need Help?
+
+<CardGroup cols={2}>
+  <Card title="Join Discord" icon="discord" href="https://discord.gg/AffeGaJ5XS">
+    Ask the self-hosting community
+  </Card>
+  <Card title="GitHub Issues" icon="github" href="https://github.com/codykociemba/NoLongerEvil-Thermostat/issues">
+    Report bugs or request features
+  </Card>
+</CardGroup>
