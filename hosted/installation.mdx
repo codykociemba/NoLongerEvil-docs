@@ -97,6 +97,52 @@ Download the firmware installer for your operating system:
   </Tab>
 </Tabs>
 
+<Accordion title="Installer not working? Try manual installation" icon="code">
+  If the pre-built installer doesn't work for you, you can run it manually from source:
+
+  <Tabs>
+    <Tab title="Linux">
+      ```bash
+      # Clone the repository
+      git clone -b open-source-prototype https://github.com/codykociemba/NoLongerEvil-Thermostat.git
+      cd NoLongerEvil-Thermostat
+
+      # Install dependencies
+      sudo apt-get update
+      sudo apt-get install build-essential libusb-1.0-0-dev gcc pkg-config nodejs npm
+
+      # Run the installer
+      cd firmware/installer
+      npm install
+      npm run electron:dev
+      ```
+    </Tab>
+
+    <Tab title="macOS">
+      ```bash
+      # Install Homebrew if not already installed
+      /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+      # Clone the repository
+      git clone -b open-source-prototype https://github.com/codykociemba/NoLongerEvil-Thermostat.git
+      cd NoLongerEvil-Thermostat
+
+      # Install dependencies
+      brew install libusb node
+
+      # Run the installer
+      cd firmware/installer
+      npm install
+      npm run electron:dev
+      ```
+    </Tab>
+  </Tabs>
+
+  <Note>
+    This will run the installer directly from source using Electron. The installer GUI will open just like the pre-built version.
+  </Note>
+</Accordion>
+
 ---
 
 ## Step 3: Launch the Installer

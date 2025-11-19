@@ -4,6 +4,10 @@ description: 'Complete guide to setting up your own No Longer Evil infrastructur
 ---
 
 <Warning>
+  **Work in Progress**: The self-hosted installation is currently a work in progress and may or may not function correctly. For a stable, production-ready experience, we recommend using the [hosted service](/hosted/overview) instead.
+</Warning>
+
+<Warning>
   **Before you begin:**
 
   - Ensure you have a **Nest Generation 1 or Generation 2** thermostat ([check compatibility](/compatibility))
@@ -255,6 +259,12 @@ The installer **does NOT** start the frontend automatically. The frontend is opt
    #NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
    #CLERK_SECRET_KEY=
 
+   # NextAuth URL (REQUIRED)
+   # This is the URL where your frontend is accessible
+   # For local access only: http://localhost:3000
+   # For network access: http://your-server-ip:3000
+   NEXTAUTH_URL=http://localhost:3000
+
    # Proxy Server Configuration (REQUIRED)
    # This tells the frontend where your self-hosted API server is running
    PROXY_HOST=192.168.1.100  # Replace with your server's local IP
@@ -276,16 +286,23 @@ The installer **does NOT** start the frontend automatically. The frontend is opt
 
    **Key Variables to Update:**
    - `ENCRYPTION_KEY`: Generate a random string (use `openssl rand -hex 32`)
+   - `NEXTAUTH_URL`: Your frontend URL (e.g., `http://localhost:3000` for local access, or `http://192.168.1.100:3000` for network access)
    - `PROXY_HOST`: Your server's IP address (e.g., `192.168.1.100`)
-   - `NEXTAUTH_URL`: Your frontend URL (e.g., `http://192.168.1.100:3000` for network access)
    - `NEXT_PUBLIC_BACKEND_URL`: Your Control API URL - same server as `PROXY_HOST` (e.g., `http://192.168.1.100:8081`)
 
-4. **Run the development server:**
+4. **Deploy Convex backend:**
+   ```bash
+   npx convex deploy
+   ```
+
+   Once the deployment completes, press `Ctrl + C` to exit.
+
+5. **Run the development server:**
    ```bash
    npm run dev
    ```
 
-5. **Access the dashboard:**
+6. **Access the dashboard:**
    Open your browser to `http://localhost:3000`
 
 <Note>
