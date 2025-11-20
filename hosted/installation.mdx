@@ -103,17 +103,22 @@ Download the firmware installer for your operating system:
   <Tabs>
     <Tab title="Linux">
       ```bash
+      # Install dependencies
+      sudo apt-get update
+      sudo apt-get install -y curl build-essential libusb-1.0-0-dev libudev-dev gcc pkg-config
+
+      # Install Node.js 20 (required)
+      curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+      sudo apt-get install -y nodejs
+
       # Clone the repository
       git clone -b open-source-prototype https://github.com/codykociemba/NoLongerEvil-Thermostat.git
       cd NoLongerEvil-Thermostat
 
-      # Install dependencies
-      sudo apt-get update
-      sudo apt-get install build-essential libusb-1.0-0-dev gcc pkg-config nodejs npm
-
       # Run the installer
       cd firmware/installer
       npm install
+      export ELECTRON_DISABLE_SANDBOX=1
       npm run electron:dev
       ```
     </Tab>
@@ -123,12 +128,16 @@ Download the firmware installer for your operating system:
       # Install Homebrew if not already installed
       /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
+      # Install Node.js 20 (required)
+      brew install node@20
+      brew link --overwrite node@20
+
       # Clone the repository
       git clone -b open-source-prototype https://github.com/codykociemba/NoLongerEvil-Thermostat.git
       cd NoLongerEvil-Thermostat
 
       # Install dependencies
-      brew install libusb node
+      brew install libusb
 
       # Run the installer
       cd firmware/installer
