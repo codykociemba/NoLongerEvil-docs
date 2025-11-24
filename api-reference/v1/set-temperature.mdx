@@ -1,0 +1,188 @@
+---
+title: Set Temperature
+description: 'Set the target temperature for heating or cooling'
+---
+
+## Overview
+
+Set the target temperature for your thermostat in heating or cooling mode.
+
+## Endpoint
+
+```
+POST https://nolongerevil.com/api/v1/thermostat/{deviceId}/temperature
+```
+
+<Tip>
+  **Self-hosted?** Use `http://localhost:3000/api/v1/thermostat/{deviceId}/temperature`
+</Tip>
+
+## Authentication
+
+**Required Scopes**: `write`
+
+```
+Authorization: Bearer nle_your_api_key_here
+```
+
+## Request
+
+### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `deviceId` | string | Yes | Device ID from `/devices` endpoint |
+
+### Request Body
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `value` | number | Yes | Target temperature |
+| `mode` | string | Yes | `"heat"` or `"cool"` |
+| `scale` | string | No | `"C"` (default) or `"F"` |
+
+### Example Request
+
+```json
+{
+  "value": 72,
+  "mode": "heat",
+  "scale": "F"
+}
+```
+
+## Response
+
+### Success Response (200 OK)
+
+```json
+{
+  "success": true,
+  "message": "Command handled",
+  "device": "02AA01AB01234567",
+  "object": "shared.02AA01AB01234567",
+  "revision": 153,
+  "timestamp": 1764026373459
+}
+```
+
+### Error Responses
+
+**400 Bad Request**:
+```json
+{
+  "error": "Temperature value must be a number"
+}
+```
+
+**401/403/429**: See [authentication docs](/api-reference/authentication).
+
+## Code Examples
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://nolongerevil.com/api/v1/thermostat/dev_abc123xyz/temperature \
+  -H "Authorization: Bearer nle_your_api_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{"value": 72, "mode": "heat", "scale": "F"}'
+```
+
+```javascript JavaScript
+async function setTemperature(deviceId, temperature, mode, scale = 'C') {
+  const response = await fetch(
+    `https://nolongerevil.com/api/v1/thermostat/${deviceId}/temperature`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer nle_your_api_key_here',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ value: temperature, mode, scale })
+    }
+  );
+
+  return await response.json();
+}
+
+// Usage
+await setTemperature('dev_abc123xyz', 72, 'heat', 'F');
+```
+
+```python Python
+import requests
+
+def set_temperature(device_id, temperature, mode, scale='C'):
+    response = requests.post(
+        f'https://nolongerevil.com/api/v1/thermostat/{device_id}/temperature',
+        headers={'Authorization': 'Bearer nle_your_api_key_here'},
+        json={'value': temperature, 'mode': mode, 'scale': scale}
+    )
+    response.raise_for_status()
+    return response.json()
+
+# Usage
+set_temperature('dev_abc123xyz', 22, 'heat', 'C')
+```
+
+</CodeGroup>
+
+## Temperature Scale
+
+- **Celsius**: Use `"scale": "C"` (default)
+- **Fahrenheit**: Use `"scale": "F"`
+
+The thermostat internally uses Celsius. If you provide Fahrenheit, it will be converted automatically.
+
+<Note>
+  Thermostats round to the nearest 0.5°C increment.
+</Note>
+
+## Use Cases
+
+### Schedule-Based Control
+
+```javascript
+const schedule = [
+  { time: '06:00', temp: 68 }, // Morning
+  { time: '09:00', temp: 62 }, // Day (away)
+  { time: '17:00', temp: 70 }, // Evening
+  { time: '22:00', temp: 65 }  // Night
+];
+
+schedule.forEach(({ time, temp }) => {
+  cron.schedule(time, () => {
+    setTemperature(deviceId, temp, 'heat', 'F');
+  });
+});
+```
+
+### Smart Adjustments
+
+```javascript
+// Adjust based on outdoor temperature
+const outdoorTemp = await getWeatherTemperature();
+
+if (outdoorTemp < 32) {
+  await setTemperature(deviceId, 72, 'heat', 'F'); // Colder outside
+} else {
+  await setTemperature(deviceId, 68, 'heat', 'F'); // Warmer outside
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Set Mode" icon="sliders" href="/api-reference/v1/set-mode">
+    Change HVAC mode
+  </Card>
+  <Card title="Set Temperature Range" icon="arrows-left-right" href="/api-reference/v1/set-temperature-range">
+    Set range for heat-cool mode
+  </Card>
+  <Card title="Get Status" icon="chart-line" href="/api-reference/v1/get-status">
+    Check current temperature
+  </Card>
+  <Card title="Set Away Mode" icon="door-open" href="/api-reference/v1/set-away">
+    Enable energy-saving mode
+  </Card>
+</CardGroup>

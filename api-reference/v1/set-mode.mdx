@@ -1,0 +1,134 @@
+---
+title: Set HVAC Mode
+description: 'Change the heating/cooling mode of your thermostat'
+---
+
+## Overview
+
+Change the HVAC operating mode between heat, cool, heat-cool (auto), or off.
+
+## Endpoint
+
+```
+POST https://nolongerevil.com/api/v1/thermostat/{deviceId}/mode
+```
+
+## Authentication
+
+**Required Scopes**: `write`
+
+## Request Body
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `mode` | string | Yes | `"heat"`, `"cool"`, `"heat-cool"`, or `"off"` |
+
+```json
+{
+  "mode": "heat-cool"
+}
+```
+
+## Response
+
+Success (200 OK):
+```json
+{
+  "success": true,
+  "message": "Command handled",
+  "device": "02AA01AB01234567",
+  "object": "shared.02AA01AB01234567",
+  "revision": 155,
+  "timestamp": 1764026377395
+}
+```
+
+## HVAC Modes
+
+| Mode | Description |
+|------|-------------|
+| `heat` | Heating only - maintains minimum temperature |
+| `cool` | Cooling only - maintains maximum temperature |
+| `heat-cool` | Auto mode - maintains temperature range |
+| `off` | System off - no heating or cooling |
+
+<Note>
+  When switching to `heat-cool` mode, use the [Set Temperature Range](/api-reference/v1/set-temperature-range) endpoint to configure the temperature range.
+</Note>
+
+## Code Examples
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://nolongerevil.com/api/v1/thermostat/dev_abc123xyz/mode \
+  -H "Authorization: Bearer nle_your_api_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{"mode": "heat-cool"}'
+```
+
+```javascript JavaScript
+async function setMode(deviceId, mode) {
+  const response = await fetch(
+    `https://nolongerevil.com/api/v1/thermostat/${deviceId}/mode`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer nle_your_api_key_here',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ mode })
+    }
+  );
+  return await response.json();
+}
+
+// Usage
+await setMode('dev_abc123xyz', 'heat');
+```
+
+```python Python
+def set_mode(device_id, mode):
+    response = requests.post(
+        f'https://nolongerevil.com/api/v1/thermostat/{device_id}/mode',
+        headers={'Authorization': 'Bearer nle_your_api_key_here'},
+        json={'mode': mode}
+    )
+    response.raise_for_status()
+    return response.json()
+```
+
+</CodeGroup>
+
+## Use Cases
+
+### Seasonal Mode Switching
+
+```javascript
+// Switch to cooling for summer
+if (month >= 5 && month <= 9) {
+  await setMode(deviceId, 'cool');
+} else {
+  await setMode(deviceId, 'heat');
+}
+```
+
+### Energy Saving
+
+```javascript
+// Turn off HVAC when nobody's home
+if (awayMode) {
+  await setMode(deviceId, 'off');
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Set Temperature" icon="temperature-half" href="/api-reference/v1/set-temperature">
+    Set target temperature
+  </Card>
+  <Card title="Set Temperature Range" icon="arrows-left-right" href="/api-reference/v1/set-temperature-range">
+    Configure heat-cool range
+  </Card>
+</CardGroup>

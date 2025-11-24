@@ -1,0 +1,279 @@
+---
+title: List Devices
+description: 'Get all thermostats accessible by your API key'
+---
+
+## Overview
+
+The `/devices` endpoint returns a list of all thermostats you have access to, including devices you own and devices that have been shared with you.
+
+## Endpoint
+
+```
+GET https://nolongerevil.com/api/v1/devices
+```
+
+<Tip>
+  **Self-hosted?** Use `http://localhost:3000/api/v1/devices` instead.
+</Tip>
+
+## Authentication
+
+This endpoint requires API key authentication.
+
+**Required Scopes**: `read`
+
+Include your API key in the `Authorization` header:
+
+```
+Authorization: Bearer nle_your_api_key_here
+```
+
+## Request
+
+### Headers
+
+| Header | Value | Required |
+|--------|-------|----------|
+| `Authorization` | `Bearer nle_your_api_key_here` | Yes |
+
+### Query Parameters
+
+None.
+
+## Response
+
+### Success Response (200 OK)
+
+```json
+{
+  "devices": [
+    {
+      "id": "dev_abc123xyz",
+      "serial": "02AA01AB01234567",
+      "name": "Living Room",
+      "accessType": "owner"
+    },
+    {
+      "id": "dev_def456uvw",
+      "serial": "02AA01AB01234568",
+      "name": "Bedroom",
+      "accessType": "shared"
+    }
+  ]
+}
+```
+
+### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `devices` | array | Array of device objects |
+| `devices[].id` | string | Unique device identifier (UUID) |
+| `devices[].serial` | string | Device serial number (17 characters) |
+| `devices[].name` | string \| null | Custom device name (null if not set) |
+| `devices[].accessType` | string | Access level: `"owner"` or `"shared"` |
+
+### Error Responses
+
+#### 401 Unauthorized
+
+```json
+{
+  "error": "Unauthorized"
+}
+```
+
+**Cause**: Missing or invalid API key.
+
+**Solution**: Check that your API key is correct and included in the Authorization header.
+
+#### 429 Too Many Requests
+
+```json
+{
+  "error": "Rate limit exceeded",
+  "retryAfter": "2025-01-24T12:35:00.000Z"
+}
+```
+
+**Cause**: You've exceeded the rate limit (20 requests/minute for API keys).
+
+**Solution**: Wait until the time specified in `retryAfter` before making another request.
+
+## Rate Limiting
+
+| Rate Limit | Value |
+|------------|-------|
+| Requests per minute | 20 (API keys) / 100 (user accounts) |
+
+**Rate Limit Headers** (included in response):
+```
+X-RateLimit-Limit: 20
+X-RateLimit-Remaining: 15
+X-RateLimit-Reset: 2025-01-24T12:34:56.000Z
+```
+
+## Code Examples
+
+<CodeGroup>
+
+```bash cURL
+curl https://nolongerevil.com/api/v1/devices \
+  -H "Authorization: Bearer nle_your_api_key_here"
+```
+
+```javascript JavaScript/Node.js
+const API_KEY = 'nle_your_api_key_here';
+const BASE_URL = 'https://nolongerevil.com/api/v1';
+
+async function listDevices() {
+  const response = await fetch(`${BASE_URL}/devices`, {
+    headers: {
+      'Authorization': `Bearer ${API_KEY}`
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.devices;
+}
+
+// Usage
+listDevices()
+  .then(devices => {
+    console.log('Found devices:', devices);
+    devices.forEach(device => {
+      console.log(`- ${device.name || device.serial} (${device.accessType})`);
+    });
+  })
+  .catch(error => console.error('Error:', error));
+```
+
+```python Python
+import requests
+
+API_KEY = 'nle_your_api_key_here'
+BASE_URL = 'https://nolongerevil.com/api/v1'
+
+def list_devices():
+    headers = {
+        'Authorization': f'Bearer {API_KEY}'
+    }
+
+    response = requests.get(f'{BASE_URL}/devices', headers=headers)
+    response.raise_for_status()
+
+    return response.json()['devices']
+
+# Usage
+try:
+    devices = list_devices()
+    print(f'Found {len(devices)} device(s):')
+    for device in devices:
+        name = device['name'] or device['serial']
+        print(f'- {name} ({device["accessType"]})')
+except requests.exceptions.HTTPError as e:
+    print(f'Error: {e}')
+```
+
+</CodeGroup>
+
+## Use Cases
+
+### Home Automation Integration
+
+List all your devices at startup to build a device registry:
+
+```javascript
+// Home Assistant integration example
+async function discoverDevices() {
+  const devices = await listDevices();
+
+  // Register each device with your automation platform
+  devices.forEach(device => {
+    registerEntity({
+      id: device.id,
+      name: device.name || `Thermostat ${device.serial}`,
+      type: 'climate',
+      capabilities: ['temperature', 'mode', 'fan']
+    });
+  });
+}
+```
+
+### Multi-Zone Control
+
+Control devices in different zones:
+
+```javascript
+const devices = await listDevices();
+
+// Group by location/name
+const upstairs = devices.filter(d =>
+  d.name && d.name.toLowerCase().includes('upstairs')
+);
+
+const downstairs = devices.filter(d =>
+  d.name && d.name.toLowerCase().includes('downstairs')
+);
+
+// Set different temperatures
+await setZoneTemperature(upstairs, 22); // 22°C upstairs
+await setZoneTemperature(downstairs, 20); // 20°C downstairs
+```
+
+### Monitoring Dashboard
+
+Build a dashboard showing all your thermostats:
+
+```javascript
+async function buildDashboard() {
+  const devices = await listDevices();
+
+  // Fetch status for each device
+  const deviceStatuses = await Promise.all(
+    devices.map(async (device) => {
+      const status = await getDeviceStatus(device.id);
+      return {
+        ...device,
+        temperature: status.state['shared.' + device.serial]?.value.current_temperature,
+        targetTemp: status.state['shared.' + device.serial]?.value.target_temperature
+      };
+    })
+  );
+
+  return deviceStatuses;
+}
+```
+
+## Access Control
+
+The devices returned depend on your API key's permissions:
+
+1. **No device restrictions**: Returns all devices you own or have shared access to
+2. **Specific device restrictions**: Returns only devices specified in the API key's `serials` array
+
+<Note>
+  Devices shared with you will have `accessType: "shared"`. You may have limited permissions on shared devices depending on the sharing settings.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Get Device Status" icon="chart-line" href="/api-reference/v1/get-status">
+    Retrieve detailed device state and settings
+  </Card>
+  <Card title="Set Temperature" icon="temperature-half" href="/api-reference/v1/set-temperature">
+    Control device temperature
+  </Card>
+  <Card title="Set Mode" icon="sliders" href="/api-reference/v1/set-mode">
+    Change HVAC mode (heat/cool/auto/off)
+  </Card>
+  <Card title="Authentication" icon="key" href="/api-reference/authentication">
+    Learn about API key management
+  </Card>
+</CardGroup>

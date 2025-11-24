@@ -1,0 +1,199 @@
+---
+title: Delete Device
+description: 'Remove a device from your account'
+---
+
+## Overview
+
+Permanently remove a device from your account. This action cannot be undone.
+
+<Warning>
+  **This action is irreversible!** The device will be unlinked from your account and will need to be reclaimed using an entry key.
+</Warning>
+
+## Endpoint
+
+```
+DELETE https://nolongerevil.com/api/v1/thermostat/{deviceId}
+```
+
+## Authentication
+
+**Required Scopes**: `write`
+
+**Additional Requirement**: Must be the device owner (not just shared access)
+
+## Request
+
+### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `deviceId` | string | Yes | Device ID to delete |
+
+### Headers
+
+| Header | Value | Required |
+|--------|-------|----------|
+| `Authorization` | `Bearer nle_your_api_key_here` | Yes |
+
+### Example Request
+
+```
+DELETE /api/v1/thermostat/dev_abc123xyz
+Authorization: Bearer nle_your_api_key_here
+```
+
+## Response
+
+### Success Response (200 OK)
+
+```json
+{
+  "success": true,
+  "message": "Device deleted successfully"
+}
+```
+
+### Error Responses
+
+#### 403 Forbidden
+
+```json
+{
+  "error": "Only device owners can delete devices"
+}
+```
+
+**Cause**: You have shared access to this device but are not the owner.
+
+**Solution**: Only the device owner can delete it. If you want to remove your access, ask the owner to revoke the share.
+
+#### 404 Not Found
+
+```json
+{
+  "error": "Device not found"
+}
+```
+
+**Cause**: Device ID doesn't exist or you don't have access to it.
+
+## Code Examples
+
+<CodeGroup>
+
+```bash cURL
+curl -X DELETE https://nolongerevil.com/api/v1/thermostat/dev_abc123xyz \
+  -H "Authorization: Bearer nle_your_api_key_here"
+```
+
+```javascript JavaScript
+async function deleteDevice(deviceId) {
+  const response = await fetch(
+    `https://nolongerevil.com/api/v1/thermostat/${deviceId}`,
+    {
+      method: 'DELETE',
+      headers: {
+        'Authorization': 'Bearer nle_your_api_key_here'
+      }
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to delete device: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+// Usage with confirmation
+if (confirm('Are you sure you want to delete this device?')) {
+  await deleteDevice('dev_abc123xyz');
+  console.log('Device deleted successfully');
+}
+```
+
+```python Python
+def delete_device(device_id):
+    response = requests.delete(
+        f'https://nolongerevil.com/api/v1/thermostat/{device_id}',
+        headers={'Authorization': 'Bearer nle_your_api_key_here'}
+    )
+    response.raise_for_status()
+    return response.json()
+
+# Usage with confirmation
+if input('Delete device? (yes/no): ').lower() == 'yes':
+    delete_device('dev_abc123xyz')
+    print('Device deleted')
+```
+
+</CodeGroup>
+
+## What Happens After Deletion
+
+When you delete a device:
+
+1. **Device is unlinked** from your account
+2. **All shares are revoked** - users with shared access lose access
+3. **Device settings persist** - temperature, schedule, etc. remain on the device
+4. **Device remains functional** - continues operating with last known settings
+5. **Can be reclaimed** - Generate a new entry key on the thermostat to reclaim it
+
+## Use Cases
+
+### Device Replacement
+
+```javascript
+// When replacing an old thermostat
+async function replaceDevice(oldDeviceId, newEntryKey) {
+  // Delete old device
+  await deleteDevice(oldDeviceId);
+
+  // Claim new device
+  await claimDevice(newEntryKey);
+}
+```
+
+### Selling/Moving
+
+```javascript
+// When selling your home or moving out
+async function removeAllDevices() {
+  const { devices } = await listDevices();
+
+  for (const device of devices) {
+    if (device.accessType === 'owner') {
+      await deleteDevice(device.id);
+      console.log(`Deleted ${device.name || device.serial}`);
+    }
+  }
+}
+```
+
+## Reclaiming a Deleted Device
+
+To reclaim a device after deletion:
+
+1. On the thermostat: Settings → Nest App → Get Entry Code
+2. In dashboard: Add Device → Enter the entry code
+3. Device will be linked to your account again
+
+<Tip>
+  Before deleting a device, consider if you just want to transfer ownership instead. Contact support for ownership transfer assistance.
+</Tip>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="List Devices" icon="list" href="/api-reference/v1/devices">
+    View all your devices
+  </Card>
+  <Card title="Get Status" icon="chart-line" href="/api-reference/v1/get-status">
+    Check device status
+  </Card>
+  <Card title="Authentication" icon="key" href="/api-reference/authentication">
+    Manage API keys
+  </Card>
+</CardGroup>

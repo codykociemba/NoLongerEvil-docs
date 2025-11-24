@@ -1,0 +1,152 @@
+---
+title: Set Away Mode
+description: 'Toggle between home and away modes for energy savings'
+---
+
+## Overview
+
+Enable or disable away mode. When away mode is enabled, the thermostat adjusts to energy-saving temperatures.
+
+## Endpoint
+
+```
+POST https://nolongerevil.com/api/v1/thermostat/{deviceId}/away
+```
+
+## Authentication
+
+**Required Scopes**: `write`
+
+## Request Body
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `away` | boolean | Yes | `true` for away, `false` for home |
+
+```json
+{
+  "away": true
+}
+```
+
+## Response
+
+Success (200 OK):
+```json
+{
+  "success": true,
+  "message": "Command handled",
+  "device": "02AA01AB01234567",
+  "object": "shared.02AA01AB01234567",
+  "revision": 156,
+  "timestamp": 1764026405000
+}
+```
+
+## Away Mode Effects
+
+When away mode is enabled:
+- **Temperature adjusted**: Lower in winter, higher in summer
+- **Motion detection paused**: Won't automatically switch to home
+- **Energy savings**: Reduced HVAC usage
+- **Learning disabled**: Thermostat won't learn new patterns
+
+<Tip>
+  Away mode can save 10-20% on energy costs when you're not home.
+</Tip>
+
+## Code Examples
+
+<CodeGroup>
+
+```bash cURL
+# Enable away mode
+curl -X POST https://nolongerevil.com/api/v1/thermostat/dev_abc123xyz/away \
+  -H "Authorization: Bearer nle_your_api_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{"away": true}'
+```
+
+```javascript JavaScript
+async function setAwayMode(deviceId, away) {
+  const response = await fetch(
+    `https://nolongerevil.com/api/v1/thermostat/${deviceId}/away`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer nle_your_api_key_here',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ away })
+    }
+  );
+  return await response.json();
+}
+
+// Usage
+await setAwayMode('dev_abc123xyz', true); // Enable away
+await setAwayMode('dev_abc123xyz', false); // Disable away
+```
+
+```python Python
+def set_away_mode(device_id, away):
+    response = requests.post(
+        f'https://nolongerevil.com/api/v1/thermostat/{device_id}/away',
+        headers={'Authorization': 'Bearer nle_your_api_key_here'},
+        json={'away': away}
+    )
+    response.raise_for_status()
+    return response.json()
+
+# Enable away mode
+set_away_mode('dev_abc123xyz', True)
+```
+
+</CodeGroup>
+
+## Use Cases
+
+### Geofencing Integration
+
+```javascript
+// Automatically enable away mode when you leave home
+async function handleGeofence(location) {
+  const isHome = calculateDistance(location, homeLocation) < 0.5; // Within 0.5 miles
+
+  await setAwayMode(deviceId, !isHome);
+}
+```
+
+### Vacation Mode
+
+```javascript
+// Enable away mode for vacation
+async function enableVacationMode(deviceId, startDate, endDate) {
+  await setAwayMode(deviceId, true);
+
+  // Schedule return to home mode
+  scheduleTask(endDate, async () => {
+    await setAwayMode(deviceId, false);
+  });
+}
+```
+
+### Energy-Aware Automation
+
+```javascript
+// Enable away during peak energy hours
+if (hour >= 14 && hour <= 18) { // 2PM-6PM peak hours
+  await setAwayMode(deviceId, true);
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Set Temperature" icon="temperature-half" href="/api-reference/v1/set-temperature">
+    Adjust target temperature
+  </Card>
+  <Card title="Get Status" icon="chart-line" href="/api-reference/v1/get-status">
+    Check away status
+  </Card>
+</CardGroup>

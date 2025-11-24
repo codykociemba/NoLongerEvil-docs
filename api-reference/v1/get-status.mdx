@@ -1,0 +1,369 @@
+---
+title: Get Device Status
+description: 'Retrieve complete device state including temperature, mode, and settings'
+---
+
+## Overview
+
+The `/thermostat/{deviceId}/status` endpoint returns the complete state of a thermostat, including current temperature, target temperature, HVAC mode, fan settings, schedule, and all other device properties.
+
+## Endpoint
+
+```
+GET https://nolongerevil.com/api/v1/thermostat/{deviceId}/status
+```
+
+<Tip>
+  **Self-hosted?** Use `http://localhost:3000/api/v1/thermostat/{deviceId}/status` instead.
+</Tip>
+
+## Authentication
+
+**Required Scopes**: `read`
+
+Include your API key in the `Authorization` header:
+
+```
+Authorization: Bearer nle_your_api_key_here
+```
+
+## Request
+
+### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `deviceId` | string | Yes | Device ID (UUID) from the `/devices` endpoint |
+
+### Headers
+
+| Header | Value | Required |
+|--------|-------|----------|
+| `Authorization` | `Bearer nle_your_api_key_here` | Yes |
+
+### Example Request
+
+```bash
+GET https://nolongerevil.com/api/v1/thermostat/dev_abc123xyz/status
+Authorization: Bearer nle_your_api_key_here
+```
+
+## Response
+
+### Success Response (200 OK)
+
+```json
+{
+  "device": {
+    "id": "dev_abc123xyz",
+    "serial": "02AA01AB01234567",
+    "name": "Living Room"
+  },
+  "state": {
+    "shared.02AA01AB01234567": {
+      "object_revision": 152,
+      "object_timestamp": 1764026373459,
+      "value": {
+        "target_temperature": 21.5,
+        "target_temperature_type": "heat",
+        "current_temperature": 20.2,
+        "hvac_heater_state": true,
+        "hvac_ac_state": false,
+        "fan_mode": "auto",
+        "auto_away": 0,
+        "leaf": false,
+        "can_cool": true,
+        "can_heat": true,
+        "postal_code": "85388",
+        "country_code": "US"
+      }
+    },
+    "device.02AA01AB01234567": {
+      "object_revision": 89,
+      "object_timestamp": 1764026373000,
+      "value": {
+        "temperature_scale": "C",
+        "fan_timer_timeout": 0,
+        "compressor_lockout_enabled": true,
+        "eco_mode_enabled": false,
+        "temperature_lock_enabled": false
+      }
+    },
+    "user.67032595": {
+      "object_revision": -23671,
+      "object_timestamp": 1764024643855,
+      "value": {
+        "away": false,
+        "name": "Guest",
+        "email": "guest@nolongerevil.com"
+      }
+    },
+    "structure.95d0a01f-1c25-447f-ba61-edb275e9ae25": {
+      "object_revision": -15172,
+      "object_timestamp": 1764024645708,
+      "value": {
+        "name": "Home",
+        "away": false,
+        "postal_code": "85388",
+        "country_code": "US",
+        "time_zone": "America/Chicago"
+      }
+    }
+  }
+}
+```
+
+### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `device` | object | Basic device information |
+| `device.id` | string | Device UUID |
+| `device.serial` | string | Device serial number |
+| `device.name` | string \| null | Custom device name |
+| `state` | object | Object containing all device state data |
+| `state.shared.{serial}` | object | Shared device state (temperature, mode, etc.) |
+| `state.device.{serial}` | object | Device-specific settings |
+| `state.user.{userId}` | object | User-specific settings |
+| `state.structure.{structureId}` | object | Structure/home settings |
+
+### Key State Fields (shared.{serial}.value)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `current_temperature` | number | Current room temperature (°C) |
+| `target_temperature` | number | Target temperature (°C) |
+| `target_temperature_type` | string | `"heat"`, `"cool"`, or `"range"` |
+| `target_temperature_low` | number | Low temp for heat-cool mode (°C) |
+| `target_temperature_high` | number | High temp for heat-cool mode (°C) |
+| `hvac_heater_state` | boolean | Heating currently active |
+| `hvac_ac_state` | boolean | Cooling currently active |
+| `hvac_fan_state` | boolean | Fan currently running |
+| `fan_mode` | string | `"auto"`, `"on"`, or `"off"` |
+| `auto_away` | number | 0 = home, 2 = away |
+| `can_cool` | boolean | Device supports cooling |
+| `can_heat` | boolean | Device supports heating |
+
+### Error Responses
+
+#### 401 Unauthorized
+
+```json
+{
+  "error": "Unauthorized"
+}
+```
+
+**Cause**: Missing or invalid API key.
+
+#### 403 Forbidden
+
+```json
+{
+  "error": "Access denied to this device"
+}
+```
+
+**Cause**: Your API key doesn't have permission to access this device.
+
+**Solution**: Check that the device ID is correct and your API key has access to it.
+
+#### 404 Not Found
+
+```json
+{
+  "error": "Device not found"
+}
+```
+
+**Cause**: Device ID doesn't exist or you don't have access to it.
+
+#### 429 Too Many Requests
+
+```json
+{
+  "error": "Rate limit exceeded",
+  "retryAfter": "2025-01-24T12:35:00.000Z"
+}
+```
+
+## Code Examples
+
+<CodeGroup>
+
+```bash cURL
+curl https://nolongerevil.com/api/v1/thermostat/dev_abc123xyz/status \
+  -H "Authorization: Bearer nle_your_api_key_here"
+```
+
+```javascript JavaScript/Node.js
+const API_KEY = 'nle_your_api_key_here';
+const BASE_URL = 'https://nolongerevil.com/api/v1';
+
+async function getDeviceStatus(deviceId) {
+  const response = await fetch(
+    `${BASE_URL}/thermostat/${deviceId}/status`,
+    {
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`
+      }
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+// Usage
+getDeviceStatus('dev_abc123xyz')
+  .then(data => {
+    const shared = data.state[`shared.${data.device.serial}`]?.value;
+    console.log(`Current temp: ${shared.current_temperature}°C`);
+    console.log(`Target temp: ${shared.target_temperature}°C`);
+    console.log(`Mode: ${shared.target_temperature_type}`);
+    console.log(`Heating: ${shared.hvac_heater_state ? 'ON' : 'OFF'}`);
+  })
+  .catch(error => console.error('Error:', error));
+```
+
+```python Python
+import requests
+
+API_KEY = 'nle_your_api_key_here'
+BASE_URL = 'https://nolongerevil.com/api/v1'
+
+def get_device_status(device_id):
+    headers = {
+        'Authorization': f'Bearer {API_KEY}'
+    }
+
+    response = requests.get(
+        f'{BASE_URL}/thermostat/{device_id}/status',
+        headers=headers
+    )
+    response.raise_for_status()
+
+    return response.json()
+
+# Usage
+try:
+    data = get_device_status('dev_abc123xyz')
+    serial = data['device']['serial']
+    shared = data['state'][f'shared.{serial}']['value']
+
+    print(f"Current temp: {shared['current_temperature']}°C")
+    print(f"Target temp: {shared['target_temperature']}°C")
+    print(f"Mode: {shared['target_temperature_type']}")
+    print(f"Heating: {'ON' if shared['hvac_heater_state'] else 'OFF'}")
+except requests.exceptions.HTTPError as e:
+    print(f'Error: {e}')
+```
+
+</CodeGroup>
+
+## Use Cases
+
+### Temperature Monitoring
+
+Poll device status to monitor temperature changes:
+
+```javascript
+async function monitorTemperature(deviceId, callback) {
+  setInterval(async () => {
+    const status = await getDeviceStatus(deviceId);
+    const shared = status.state[`shared.${status.device.serial}`]?.value;
+
+    callback({
+      current: shared.current_temperature,
+      target: shared.target_temperature,
+      heating: shared.hvac_heater_state,
+      cooling: shared.hvac_ac_state
+    });
+  }, 60000); // Every minute
+}
+
+monitorTemperature('dev_abc123xyz', (temps) => {
+  console.log(`Room: ${temps.current}°C → ${temps.target}°C`);
+});
+```
+
+### Energy Usage Tracking
+
+Track HVAC system activity:
+
+```javascript
+async function logEnergyUsage(deviceId) {
+  const status = await getDeviceStatus(deviceId);
+  const shared = status.state[`shared.${status.device.serial}`]?.value;
+
+  const timestamp = new Date().toISOString();
+  const usage = {
+    timestamp,
+    heating: shared.hvac_heater_state,
+    cooling: shared.hvac_ac_state,
+    fan: shared.hvac_fan_state,
+    currentTemp: shared.current_temperature,
+    targetTemp: shared.target_temperature
+  };
+
+  // Save to database or analytics platform
+  await saveToDatabase(usage);
+}
+```
+
+### Smart Automations
+
+Build conditional logic based on device state:
+
+```javascript
+async function smartAwayMode(deviceId) {
+  const status = await getDeviceStatus(deviceId);
+  const shared = status.state[`shared.${status.device.serial}`]?.value;
+
+  // If home and temperature is comfortable, don't run HVAC
+  if (shared.auto_away === 0) { // Home
+    const tempDiff = Math.abs(
+      shared.current_temperature - shared.target_temperature
+    );
+
+    if (tempDiff < 0.5 && !shared.hvac_heater_state && !shared.hvac_ac_state) {
+      console.log('Temperature comfortable, HVAC idle');
+      // Could adjust target temp to save energy
+    }
+  }
+}
+```
+
+## State Object Keys
+
+The `state` object contains multiple sub-objects with different types of data:
+
+- **`shared.{serial}`**: Shared device state (temperature, mode, HVAC status)
+- **`device.{serial}`**: Device-specific settings (scale, timers, locks)
+- **`user.{userId}`**: User preferences and settings
+- **`structure.{structureId}`**: Home/structure-wide settings
+- **`schedule.{serial}`**: Device schedule (if configured)
+
+<Note>
+  Object revisions (`object_revision`) and timestamps (`object_timestamp`) are used for state synchronization and conflict resolution. You typically don't need to use these values.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Set Temperature" icon="temperature-half" href="/api-reference/v1/set-temperature">
+    Change the target temperature
+  </Card>
+  <Card title="Set Mode" icon="sliders" href="/api-reference/v1/set-mode">
+    Change HVAC mode
+  </Card>
+  <Card title="Set Away Mode" icon="door-open" href="/api-reference/v1/set-away">
+    Toggle between home and away
+  </Card>
+  <Card title="List Devices" icon="list" href="/api-reference/v1/devices">
+    Get all your devices
+  </Card>
+</CardGroup>

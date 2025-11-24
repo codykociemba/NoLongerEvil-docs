@@ -1,0 +1,247 @@
+---
+title: Temperature Lock
+description: 'Enable or disable temperature lock with PIN protection'
+---
+
+## Overview
+
+Enable temperature lock to restrict temperature adjustments on the physical thermostat. Requires a 4-digit PIN.
+
+## Endpoint
+
+```
+POST https://nolongerevil.com/api/v1/thermostat/{deviceId}/lock
+```
+
+## Authentication
+
+**Required Scopes**: `write`
+
+## Request Body
+
+**To enable lock**:
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `enabled` | boolean | Yes | `true` |
+| `pin_hash` | string | Yes | Base64(SHA1(PIN + SERIAL)) |
+| `temp_min` | number | Yes | Minimum allowed temperature (°C) |
+| `temp_max` | number | Yes | Maximum allowed temperature (°C) |
+
+**To disable lock**:
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `enabled` | boolean | Yes | `false` |
+
+### Example: Enable Lock
+
+```json
+{
+  "enabled": true,
+  "pin_hash": "/PiS0Kl52c8oNptmsL4Z7cxd9mg=",
+  "temp_min": 18,
+  "temp_max": 24
+}
+```
+
+<Note>
+  The `pin_hash` is Base64(SHA1(PIN + SERIAL)). **Never send the PIN in plaintext!** You must concatenate the PIN with the device serial number before hashing.
+</Note>
+
+### Example: Disable Lock
+
+```json
+{
+  "enabled": false
+}
+```
+
+## Response
+
+Success (200 OK):
+```json
+{
+  "success": true,
+  "message": "Command handled",
+  "device": "02AA01AB01234567",
+  "object": "device.02AA01AB01234567",
+  "revision": 91,
+  "timestamp": 1764026415000
+}
+```
+
+## Generating PIN Hash
+
+The PIN hash algorithm matches the Nest thermostat's native format:
+
+**Algorithm:** `Base64( SHA1( PIN + SERIAL ) )`
+
+<Warning>
+  You must concatenate the PIN with the device's serial number before hashing. This matches the Nest protocol and makes PINs device-specific.
+</Warning>
+
+<CodeGroup>
+
+```javascript JavaScript (Browser)
+async function hashPin(pin, serial) {
+  // Combine PIN and serial number
+  const combined = pin + serial;
+
+  // Convert to bytes
+  const encoder = new TextEncoder();
+  const data = encoder.encode(combined);
+
+  // SHA-1 hash
+  const hashBuffer = await crypto.subtle.digest('SHA-1', data);
+
+  // Convert to Base64
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const base64 = btoa(String.fromCharCode(...hashArray));
+
+  return base64;
+}
+
+// Example: PIN "0000" + Serial "02AA01AB01234567"
+const pinHash = await hashPin('0000', '02AA01AB01234567');
+// Result: /PiS0Kl52c8oNptmsL4Z7cxd9mg=
+```
+
+```javascript JavaScript (Node.js)
+import crypto from 'crypto';
+
+function hashPin(pin, serial) {
+  const combined = pin + serial;
+  const hash = crypto.createHash('sha1').update(combined).digest('base64');
+  return hash;
+}
+
+// Example
+const pinHash = hashPin('0000', '02AA01AB01234567');
+// Result: /PiS0Kl52c8oNptmsL4Z7cxd9mg=
+```
+
+```python Python
+import hashlib
+import base64
+
+def hash_pin(pin, serial):
+    combined = pin + serial
+    sha1_hash = hashlib.sha1(combined.encode()).digest()
+    base64_hash = base64.b64encode(sha1_hash).decode()
+    return base64_hash
+
+# Example
+pin_hash = hash_pin('0000', '02AA01AB01234567')
+# Result: /PiS0Kl52c8oNptmsL4Z7cxd9mg=
+```
+
+</CodeGroup>
+
+## Code Examples
+
+<CodeGroup>
+
+```bash cURL - Enable
+curl -X POST https://nolongerevil.com/api/v1/thermostat/dev_abc123xyz/lock \
+  -H "Authorization: Bearer nle_your_api_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "enabled": true,
+    "pin_hash": "/PiS0Kl52c8oNptmsL4Z7cxd9mg=",
+    "temp_min": 18,
+    "temp_max": 24
+  }'
+```
+
+```bash cURL - Disable
+curl -X POST https://nolongerevil.com/api/v1/thermostat/dev_abc123xyz/lock \
+  -H "Authorization: Bearer nle_your_api_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{"enabled": false}'
+```
+
+```javascript JavaScript
+async function hashPin(pin, serial) {
+  const combined = pin + serial;
+  const encoder = new TextEncoder();
+  const data = encoder.encode(combined);
+  const hashBuffer = await crypto.subtle.digest('SHA-1', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return btoa(String.fromCharCode(...hashArray));
+}
+
+async function enableTemperatureLock(deviceId, serial, pin, tempMin, tempMax) {
+  const pinHash = await hashPin(pin, serial);
+
+  const response = await fetch(
+    `https://nolongerevil.com/api/v1/thermostat/${deviceId}/lock`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer nle_your_api_key_here',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        enabled: true,
+        pin_hash: pinHash,
+        temp_min: tempMin,
+        temp_max: tempMax
+      })
+    }
+  );
+  return await response.json();
+}
+
+// Usage (you need the device serial from GET /devices)
+await enableTemperatureLock('dev_abc123xyz', '02AA01AB01234567', '1234', 18, 24);
+```
+
+</CodeGroup>
+
+## Use Cases
+
+### Child Safety
+
+```javascript
+// Lock thermostat to prevent children from adjusting temperature
+await enableTemperatureLock(deviceId, deviceSerial, '1234', 18, 24);
+```
+
+### Commercial Buildings
+
+```javascript
+// Restrict guest room temperature range in hotels
+await enableTemperatureLock(roomDeviceId, roomSerial, hotelPin, 20, 23);
+```
+
+## Security Notes
+
+<Warning>
+  **Never store or transmit PINs in plaintext**. Always hash the PIN client-side before sending to the API.
+</Warning>
+
+### Important Points
+
+- **PIN Format**: Must be exactly 4 digits (0000-9999)
+- **Hashing**: Use SHA-1 (not SHA-256) with PIN + serial concatenated
+- **Encoding**: Hash must be Base64-encoded (not hex)
+- **Serial Required**: You must include the device serial number in the hash
+- **Temperature Units**: temp_min and temp_max must be in Celsius
+- **Device-Specific**: Same PIN produces different hashes for different devices
+
+### Why SHA-1 + Serial?
+
+This matches the Nest thermostat's native PIN algorithm:
+- **Device-specific**: Same PIN produces different hashes for different thermostats
+- **Protocol compatibility**: Works with the original Nest hardware
+- **Simple validation**: Thermostat can verify the hash locally without server communication
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Get Status" icon="chart-line" href="/api-reference/v1/get-status">
+    Check lock status
+  </Card>
+  <Card title="Set Temperature" icon="temperature-half" href="/api-reference/v1/set-temperature">
+    Set temperature
+  </Card>
+</CardGroup>

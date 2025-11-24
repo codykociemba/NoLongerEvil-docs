@@ -1,0 +1,123 @@
+---
+title: Set Temperature Range
+description: 'Set temperature range for heat-cool (auto) mode'
+---
+
+## Overview
+
+Configure the temperature range for heat-cool (auto) mode. The thermostat will heat when below the low threshold and cool when above the high threshold.
+
+## Endpoint
+
+```
+POST https://nolongerevil.com/api/v1/thermostat/{deviceId}/temperature/range
+```
+
+## Authentication
+
+**Required Scopes**: `write`
+
+## Request Body
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `low` | number | Yes | Minimum temperature (heating threshold) |
+| `high` | number | Yes | Maximum temperature (cooling threshold) |
+| `scale` | string | No | `"C"` (default) or `"F"` |
+
+```json
+{
+  "low": 68,
+  "high": 74,
+  "scale": "F"
+}
+```
+
+<Warning>
+  `low` must be less than `high`. Most thermostats require at least 2-3°F (1-2°C) difference.
+</Warning>
+
+## Response
+
+Success (200 OK):
+```json
+{
+  "success": true,
+  "message": "Command handled",
+  "device": "02AA01AB01234567",
+  "object": "shared.02AA01AB01234567",
+  "revision": 154,
+  "timestamp": 1764026400108
+}
+```
+
+## Code Examples
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://nolongerevil.com/api/v1/thermostat/dev_abc123xyz/temperature/range \
+  -H "Authorization: Bearer nle_your_api_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{"low": 68, "high": 74, "scale": "F"}'
+```
+
+```javascript JavaScript
+async function setTemperatureRange(deviceId, low, high, scale = 'F') {
+  const response = await fetch(
+    `https://nolongerevil.com/api/v1/thermostat/${deviceId}/temperature/range`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer nle_your_api_key_here',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ low, high, scale })
+    }
+  );
+  return await response.json();
+}
+
+// Usage
+await setTemperatureRange('dev_abc123xyz', 68, 74, 'F');
+```
+
+```python Python
+def set_temperature_range(device_id, low, high, scale='F'):
+    response = requests.post(
+        f'https://nolongerevil.com/api/v1/thermostat/{device_id}/temperature/range',
+        headers={'Authorization': 'Bearer nle_your_api_key_here'},
+        json={'low': low, 'high': high, 'scale': scale}
+    )
+    response.raise_for_status()
+    return response.json()
+```
+
+</CodeGroup>
+
+## Use Cases
+
+### Comfort Range
+
+```javascript
+// Maintain 68-74°F for optimal comfort
+await setTemperatureRange(deviceId, 68, 74, 'F');
+```
+
+### Energy Efficiency
+
+```javascript
+// Wider range = less HVAC cycling = energy savings
+await setTemperatureRange(deviceId, 65, 78, 'F');
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Set Mode" icon="sliders" href="/api-reference/v1/set-mode">
+    Switch to heat-cool mode
+  </Card>
+  <Card title="Set Temperature" icon="temperature-half" href="/api-reference/v1/set-temperature">
+    Set single temperature
+  </Card>
+</CardGroup>

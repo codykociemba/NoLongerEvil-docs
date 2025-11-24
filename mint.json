@@ -76,23 +76,18 @@
       ]
     },
     {
-      "group": "Thermostat Communication API (Port 443)",
+      "group": "User API (v1)",
       "pages": [
-        "api-reference/thermostat/entry",
-        "api-reference/thermostat/passphrase",
-        "api-reference/thermostat/transport-device",
-        "api-reference/thermostat/transport-subscribe",
-        "api-reference/thermostat/transport-put",
-        "api-reference/thermostat/weather",
-        "api-reference/thermostat/other-endpoints"
-      ]
-    },
-    {
-      "group": "Control API (Port 8081)",
-      "pages": [
-        "api-reference/control/command",
-        "api-reference/control/status",
-        "api-reference/control/devices"
+        "api-reference/v1/devices",
+        "api-reference/v1/get-status",
+        "api-reference/v1/set-temperature",
+        "api-reference/v1/set-mode",
+        "api-reference/v1/set-temperature-range",
+        "api-reference/v1/set-away",
+        "api-reference/v1/set-fan",
+        "api-reference/v1/set-lock",
+        "api-reference/v1/schedule",
+        "api-reference/v1/delete-device"
       ]
     },
     {

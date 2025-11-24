@@ -1,0 +1,177 @@
+---
+title: Control Fan
+description: 'Set fan mode or start a fan timer'
+---
+
+## Overview
+
+Control the thermostat's fan independently of heating/cooling. Set the fan to always on, auto (runs with HVAC), or start a timed fan run.
+
+## Endpoint
+
+```
+POST https://nolongerevil.com/api/v1/thermostat/{deviceId}/fan
+```
+
+## Authentication
+
+**Required Scopes**: `write`
+
+## Request Body
+
+**For fan mode**:
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `mode` | string | Yes | `"on"`, `"auto"`, or `"off"` |
+
+**For fan timer**:
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `duration` | number | Yes | Duration in seconds (max 43200 = 12 hours) |
+
+### Example: Set Fan Mode
+
+```json
+{
+  "mode": "on"
+}
+```
+
+### Example: Start Fan Timer
+
+```json
+{
+  "duration": 900
+}
+```
+
+## Response
+
+Success (200 OK):
+```json
+{
+  "success": true,
+  "message": "Command handled",
+  "device": "02AA01AB01234567",
+  "object": "device.02AA01AB01234567",
+  "revision": 90,
+  "timestamp": 1764026410000
+}
+```
+
+## Fan Modes
+
+| Mode | Description |
+|------|-------------|
+| `on` | Fan runs continuously |
+| `auto` | Fan runs only when heating/cooling is active |
+| `off` | Fan off (system idle) |
+
+<Note>
+  Fan timers automatically set the fan to `auto` mode after the duration expires.
+</Note>
+
+## Code Examples
+
+<CodeGroup>
+
+```bash cURL - Set Mode
+curl -X POST https://nolongerevil.com/api/v1/thermostat/dev_abc123xyz/fan \
+  -H "Authorization: Bearer nle_your_api_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{"mode": "on"}'
+```
+
+```bash cURL - Start Timer
+curl -X POST https://nolongerevil.com/api/v1/thermostat/dev_abc123xyz/fan \
+  -H "Authorization: Bearer nle_your_api_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{"duration": 900}'
+```
+
+```javascript JavaScript
+async function setFanMode(deviceId, mode) {
+  const response = await fetch(
+    `https://nolongerevil.com/api/v1/thermostat/${deviceId}/fan`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer nle_your_api_key_here',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ mode })
+    }
+  );
+  return await response.json();
+}
+
+async function startFanTimer(deviceId, durationSeconds) {
+  const response = await fetch(
+    `https://nolongerevil.com/api/v1/thermostat/${deviceId}/fan`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer nle_your_api_key_here',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ duration: durationSeconds })
+    }
+  );
+  return await response.json();
+}
+
+// Usage
+await setFanMode('dev_abc123xyz', 'on'); // Fan always on
+await startFanTimer('dev_abc123xyz', 900); // Run fan for 15 minutes
+```
+
+```python Python
+def set_fan_mode(device_id, mode):
+    response = requests.post(
+        f'https://nolongerevil.com/api/v1/thermostat/{device_id}/fan',
+        headers={'Authorization': 'Bearer nle_your_api_key_here'},
+        json={'mode': mode}
+    )
+    response.raise_for_status()
+    return response.json()
+
+def start_fan_timer(device_id, duration_seconds):
+    response = requests.post(
+        f'https://nolongerevil.com/api/v1/thermostat/{device_id}/fan',
+        headers={'Authorization': 'Bearer nle_your_api_key_here'},
+        json={'duration': duration_seconds}
+    )
+    response.raise_for_status()
+    return response.json()
+```
+
+</CodeGroup>
+
+## Use Cases
+
+### Air Circulation
+
+```javascript
+// Run fan for 15 minutes every hour to circulate air
+setInterval(async () => {
+  await startFanTimer(deviceId, 15 * 60); // 15 minutes
+}, 60 * 60 * 1000); // Every hour
+```
+
+### Post-Cooking Ventilation
+
+```javascript
+// Run fan after cooking to remove odors
+await startFanTimer(deviceId, 30 * 60); // 30 minutes
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Get Status" icon="chart-line" href="/api-reference/v1/get-status">
+    Check fan status
+  </Card>
+  <Card title="Set Temperature" icon="temperature-half" href="/api-reference/v1/set-temperature">
+    Control temperature
+  </Card>
+</CardGroup>

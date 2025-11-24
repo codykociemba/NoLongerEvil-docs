@@ -1,0 +1,222 @@
+---
+title: Get/Update Schedule
+description: 'Retrieve or modify the thermostat schedule'
+---
+
+## Overview
+
+Get the current thermostat schedule or update it with a new schedule configuration.
+
+## Endpoints
+
+```
+GET https://nolongerevil.com/api/v1/thermostat/{deviceId}/schedule
+PUT https://nolongerevil.com/api/v1/thermostat/{deviceId}/schedule
+```
+
+## Authentication
+
+**Required Scopes**: 
+- `read` for GET
+- `write` for PUT
+
+## Get Schedule
+
+### Request
+
+```
+GET /api/v1/thermostat/{deviceId}/schedule
+Authorization: Bearer nle_your_api_key_here
+```
+
+### Response (200 OK)
+
+```json
+{
+  "device": {
+    "id": "dev_abc123xyz",
+    "serial": "02AA01AB01234567",
+    "name": "Living Room"
+  },
+  "schedule": {
+    "ver": 2,
+    "days": {
+      "0": {
+        "0": {
+          "temp": 24.83397,
+          "time": 0,
+          "type": "COOL",
+          "entry_type": "continuation"
+        },
+        "1": {
+          "temp": 22.0,
+          "time": 61200,
+          "type": "COOL",
+          "entry_type": "setpoint"
+        }
+      },
+      "1": { ... },
+      ...
+    },
+    "name": "Current Schedule",
+    "schedule_mode": "COOL"
+  }
+}
+```
+
+### Response if No Schedule
+
+```json
+{
+  "device": { ... },
+  "schedule": null
+}
+```
+
+## Update Schedule
+
+### Request
+
+```
+PUT /api/v1/thermostat/{deviceId}/schedule
+Authorization: Bearer nle_your_api_key_here
+Content-Type: application/json
+```
+
+### Request Body
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `schedule` | object | Yes | Complete schedule object |
+
+```json
+{
+  "schedule": {
+    "ver": 2,
+    "days": { ... },
+    "name": "Weekly Schedule",
+    "schedule_mode": "HEAT"
+  }
+}
+```
+
+## Schedule Structure
+
+### Days Object
+
+Keys are day of week (0 = Sunday, 6 = Saturday):
+
+```json
+{
+  "0": { ... }, // Sunday
+  "1": { ... }, // Monday
+  "2": { ... }, // Tuesday
+  ...
+  "6": { ... }  // Saturday
+}
+```
+
+### Schedule Entry
+
+Each day contains numbered entries (0, 1, 2, ...):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `temp` | number | Temperature in Celsius |
+| `time` | number | Seconds since midnight (0-86400) |
+| `type` | string | `"HEAT"`, `"COOL"`, or `"RANGE"` |
+| `entry_type` | string | `"setpoint"` or `"continuation"` |
+
+**Example**: 6:00 AM = `21600` seconds (6 × 60 × 60)
+
+## Code Examples
+
+<CodeGroup>
+
+```bash cURL - Get
+curl https://nolongerevil.com/api/v1/thermostat/dev_abc123xyz/schedule \
+  -H "Authorization: Bearer nle_your_api_key_here"
+```
+
+```javascript JavaScript - Get
+async function getSchedule(deviceId) {
+  const response = await fetch(
+    `https://nolongerevil.com/api/v1/thermostat/${deviceId}/schedule`,
+    {
+      headers: {
+        'Authorization': 'Bearer nle_your_api_key_here'
+      }
+    }
+  );
+  return await response.json();
+}
+
+// Usage
+const { schedule } = await getSchedule('dev_abc123xyz');
+```
+
+```javascript JavaScript - Update
+async function updateSchedule(deviceId, scheduleData) {
+  const response = await fetch(
+    `https://nolongerevil.com/api/v1/thermostat/${deviceId}/schedule`,
+    {
+      method: 'PUT',
+      headers: {
+        'Authorization': 'Bearer nle_your_api_key_here',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ schedule: scheduleData })
+    }
+  );
+  return await response.json();
+}
+```
+
+</CodeGroup>
+
+## Use Cases
+
+### Simple Weekly Schedule
+
+```javascript
+const weekdaySchedule = {
+  ver: 2,
+  name: "Weekday Schedule",
+  schedule_mode: "HEAT",
+  days: {
+    1: { // Monday
+      0: { temp: 18, time: 0, type: "HEAT", entry_type: "continuation" },
+      1: { temp: 21, time: 21600, type: "HEAT", entry_type: "setpoint" }, // 6 AM
+      2: { temp: 18, time: 32400, type: "HEAT", entry_type: "setpoint" }, // 9 AM
+      3: { temp: 22, time: 61200, type: "HEAT", entry_type: "setpoint" }  // 5 PM
+    },
+    // Repeat for Tuesday-Friday (2-5)
+    ...
+  }
+};
+
+await updateSchedule(deviceId, weekdaySchedule);
+```
+
+### Copy Schedule
+
+```javascript
+// Copy schedule from one device to another
+const { schedule } = await getSchedule(sourceDeviceId);
+await updateSchedule(targetDeviceId, schedule);
+```
+
+<Note>
+  Schedules are complex objects. It's recommended to get the existing schedule, modify it, and update it rather than creating from scratch.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Set Temperature" icon="temperature-half" href="/api-reference/v1/set-temperature">
+    Manual temperature control
+  </Card>
+  <Card title="Get Status" icon="chart-line" href="/api-reference/v1/get-status">
+    Check current settings
+  </Card>
+</CardGroup>
