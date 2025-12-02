@@ -72,6 +72,10 @@ Download the firmware installer for your operating system:
 
     2. **Install dependencies**:
        ```bash
+       sudo apt-get update
+       sudo apt-get install -y curl build-essential libusb-1.0-0-dev libudev-dev gcc pkg-config
+       curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+       sudo apt-get install -y nodejs
        sudo npm install ts-node typescript --save
        ```
 
@@ -119,6 +123,9 @@ Download the firmware installer for your operating system:
       # Clone the repository
       git clone -b open-source-prototype https://github.com/codykociemba/NoLongerEvil-Thermostat.git
       cd NoLongerEvil-Thermostat
+
+      # Install typescript
+      sudo npm install ts-node typescript --save
 
       # Run the installer
       cd firmware/installer
