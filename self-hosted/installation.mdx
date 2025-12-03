@@ -20,9 +20,8 @@ description: 'Complete guide to setting up your own No Longer Evil infrastructur
 
 The self-hosted installation sets up:
 1. **Firmware flashing tools** - To flash your Nest thermostat
-2. **Convex backend** - Database for device state (runs in Docker container)
-3. **API Server** - Backend server for thermostat communication (runs in Docker container)
-4. **Frontend** (optional) - Web dashboard for controlling your thermostats
+2. **API Server** - Backend server for thermostat communication (runs in Docker container)
+3. **Frontend** (optional) - Web dashboard for controlling your thermostats
 
 ---
 
@@ -82,7 +81,7 @@ cd NoLongerEvil-Thermostat
 
 The installer will:
 - Build firmware flashing tools
-- Set up Docker containers for Convex backend and API server
+- Set up Docker container for the API server
 - Guide you through flashing your thermostat
 
 Run the installer:
@@ -98,16 +97,14 @@ chmod +x install.sh
 
 ---
 
-## Step 4: Configure Your Server
+## Step 4: Starting the API Server
 
-After the installer completes, you'll have:
+After the installer completes, you can start the API Server with `docker-compose`.
 
-**Running Docker Containers:**
-- **Convex Backend** - Database for storing device state
-- **API Server** - Handles thermostat communication
-
-**NOT Running:**
-- Frontend (web dashboard) - This is optional and must be started separately
+```bash
+cd server
+docker-compose up -d
+```
 
 ### Check Running Containers
 
@@ -115,7 +112,15 @@ After the installer completes, you'll have:
 docker ps
 ```
 
-You should see containers for the Convex backend and API server.
+You should see a container image `nolongerevil` running.  
+
+### Test API Server
+
+The default `docker-compose` will expose the API Server on port 7001.  You can confirm connectivity with `curl`.
+
+```bash
+curl localhost:7001
+```
 
 ---
 
