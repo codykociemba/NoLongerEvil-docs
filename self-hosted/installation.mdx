@@ -21,7 +21,6 @@ description: 'Complete guide to setting up your own No Longer Evil infrastructur
 The self-hosted installation sets up:
 1. **Firmware flashing tools** - To flash your Nest thermostat
 2. **API Server** - Backend server for thermostat communication (runs in Docker container)
-3. **Frontend** (optional) - Web dashboard for controlling your thermostats
 
 ---
 
@@ -97,34 +96,7 @@ chmod +x install.sh
 
 ---
 
-## Step 4: Starting the API Server
-
-After the installer completes, you can start the API Server with `docker-compose`.
-
-```bash
-cd server
-docker-compose up -d
-```
-
-### Check Running Containers
-
-```bash
-docker ps
-```
-
-You should see a container image `nolongerevil` running.  
-
-### Test API Server
-
-The default `docker-compose` will expose the API Server on port 7001.  You can confirm connectivity with `curl`.
-
-```bash
-curl localhost:7001
-```
-
----
-
-## Step 5: Flash Your Thermostat
+## Step 4: Flash Your Thermostat
 
 The installer will guide you through flashing your thermostat. **The process differs for Gen 1 and Gen 2 - choose your device below:**
 
@@ -226,139 +198,109 @@ The installer will guide you through flashing your thermostat. **The process dif
 
 ---
 
-## Step 6: Set Up Frontend (Optional)
+## Step 5: Build the server
 
-The installer **does NOT** start the frontend automatically. The frontend is optional - you can use the hosted dashboard at nolongerevil.com if you prefer.
+After you have completed flashing your device, you can build the API server. Run the commands below to build.
 
-### To run your own frontend:
-
-1. **Navigate to the frontend directory:**
-   ```bash
-   cd frontend
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
-
-3. **Configure environment variables:**
-   Copy the example environment file and update the values:
-   ```bash
-   cp .env.example .env.local
-   ```
-
-   Then edit `.env.local` and configure the following variables:
-
-   ```bash
-   # Email Service (Optional)
-   # Leave blank if you don't need email notifications
-   RESEND_API_KEY=
-
-   # Encryption Key (REQUIRED)
-   # Generate a random string for production use
-   ENCRYPTION_KEY=CHANGE-THIS-KEY-IN-PRODUCTION
-
-   # Authentication (Optional)
-   # Uncomment these if you want to use Clerk for user authentication
-   #NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
-   #CLERK_SECRET_KEY=
-
-   # NextAuth URL (REQUIRED)
-   # This is the URL where your frontend is accessible
-   # For local access only: http://localhost:3000
-   # For network access: http://your-server-ip:3000
-   NEXTAUTH_URL=http://localhost:3000
-
-   # Convex URL (REQUIRED)
-   # This is your Convex deployment URL
-   # You'll get this after running 'npx convex deploy'
-   NEXT_PUBLIC_CONVEX_URL=https://your-deployment-url.convex.cloud
-
-   # Proxy Server Configuration (REQUIRED)
-   # This tells the frontend where your self-hosted API server is running
-   PROXY_HOST=192.168.1.100  # Replace with your server's local IP
-   PROXY_PORT=80              # 80 for HTTP, 443 for HTTPS
-   CONTROL_PORT=8081          # Port for the Control API (default: 8081)
-
-   # Logging (Optional)
-   LOG_DIR=./api_logs         # Where to store API logs
-
-   # WebSocket/Subscription Settings (Optional)
-   SUBSCRIBE_IDLE_MS=5000     # Idle timeout for long-polling subscriptions
-   MAX_SUBSCRIBERS_PER_DEVICE=100  # Max concurrent subscribers per device
-
-   # Frontend Backend URL (REQUIRED)
-   # This is the URL the frontend uses to communicate with the Control API
-   # Should point to the same server as PROXY_HOST (your API server)
-   NEXT_PUBLIC_BACKEND_URL=http://localhost:8081  # Or http://your-server-ip:8081
-   ```
-
-   **Key Variables to Update:**
-   - `ENCRYPTION_KEY`: Generate a random string (use `openssl rand -hex 32`)
-   - `NEXTAUTH_URL`: Your frontend URL (e.g., `http://localhost:3000` for local access, or `http://192.168.1.100:3000` for network access)
-   - `NEXT_PUBLIC_CONVEX_URL`: Your Convex deployment URL (obtained from running `npx convex deploy`)
-   - `PROXY_HOST`: Your server's IP address (e.g., `192.168.1.100`)
-   - `NEXT_PUBLIC_BACKEND_URL`: Your Control API URL - same server as `PROXY_HOST` (e.g., `http://192.168.1.100:8081`)
-
-4. **Deploy Convex backend:**
-   ```bash
-   npx convex deploy
-   ```
-
-   Once the deployment completes, press `Ctrl + C` to exit.
-
-5. **Run the development server:**
-   ```bash
-   npm run dev
-   ```
-
-6. **Access the dashboard:**
-   Open your browser to `http://localhost:3000`
-
-<Note>
-  **Production deployment**: For production use, run `npm run build` and serve the `dist/` folder with a web server like nginx or Apache.
-</Note>
+```bash
+cd server
+npm run build
+docker build -t nolongerevil .
+```
 
 ---
 
-## Step 7: Home Assistant Integration (Optional)
+## Step 6: Starting the API Server
+
+After the build completes, you can start the API Server. Copy the `docker-compose.yml.example` to your own `docker-compose.yml` file. 
+
+```bash
+cp docker-compose.yml.example docker-compose.yml
+```
+
+You then need to edit the environment settings in this new file for your setup.
+
+<Note>
+  If you want to use Home Assistant/MQTT, follow **Step 6** below before starting the server.
+</Note>
+
+Once done, you can start the server with the below command.
+
+```bash
+docker compose up -d
+```
+
+### Check Running Containers
+
+```bash
+docker ps
+```
+
+You should see a container image `nolongerevil` running.  
+
+### Test API Server
+
+The default `docker-compose` will expose the API Server on port you selected in your `docker-compose.yml` file.  
+You can confirm connectivity with `curl`.
+
+```bash
+curl localhost:80
+```
+
+---
+
+## Step 6: Home Assistant/MQTT Integration (Optional)
 
 If you use Home Assistant, you can integrate No Longer Evil using MQTT for automatic device discovery.
 
-### Configure MQTT Integration in Convex
+### Configure MQTT Integration
 
-Add the following configuration to your Convex backend:
+Update the following environment variables in your `docker-compose.yml` file:
 
-**Basic MQTT (no authentication):**
-```javascript
-config: {
-  brokerUrl: "mqtt://10.0.0.1",  // Your MQTT broker IP
-  discoveryPrefix: "homeassistant",
-  homeAssistantDiscovery: true,
-  topicPrefix: "nolongerevil",
-}
+- **NEST_DEVICES:**
+This should be the IP address of your Nest thermostat and the device ID. Should be separated with a `:`.
+(If you have more than one device, separate them with a `,`.)
+```yml
+- NEST_DEVICES=192.168.1.20:ABCDEFGHIJKMNOPQ
 ```
-
-**MQTT with authentication (recommended):**
-```javascript
-config: {
-  brokerUrl: "mqtt://10.0.0.1",  // Your MQTT broker IP
-  discoveryPrefix: "homeassistant",
-  homeAssistantDiscovery: true,
-  password: "your_mqtt_password",
-  topicPrefix: "nolongerevil",
-  username: "mqtt_user",
-}
+- **MQTT_ENABLED:**
+`true` to enable, or `false` to disable.
+```yml
+- MQTT_ENABLED=true
 ```
-
-**Where to add this:**
-1. Access your Convex dashboard
-2. Navigate to your backend configuration
-3. Add the MQTT integration config
-4. Update the values:
-   - `brokerUrl`: Your Home Assistant MQTT broker IP
-   - `username` & `password`: Your MQTT credentials (if authentication is enabled)
+- **MQTT_SERVER_IP:**
+The IP address of your MQTT server.
+```yml
+- MQTT_SERVER_IP=192.168.1.19
+```
+- **MQTT_SERVER_PORT:**
+The port your MQTT server is listening on.
+```yml
+- MQTT_SERVER_PORT=1883
+```
+- **MQTT_USERNAME/MQTT_PASSWORD:**
+If secure, you can input your MQTT credentials.
+```yml
+- MQTT_USERNAME=
+- MQTT_PASSWORD=
+```
+- **Other MQTT Settings:**
+While not recommended, you can edit the default values for the below environment settings.
+```yml
+- MQTT_CLIENT_ID=nolongerevil-hass
+- MQTT_TOPIC_PREFIX=nest
+- MQTT_DISCOVERY_PREFIX=homeassistant
+```
+- **MQTT_HA_DISCOVERY:**
+Use this to make the device Home Assistant discoverable. `true` to enable, or `false` to disable.
+```yml
+- MQTT_HA_DISCOVERY=false
+```
+Once you start the server after modifying `NEST_DEVICES` and/or `MQTT_*` settings, the 
+server will attempt to initialize your device. You will see in the docker logs where the
+server will try and update the endpoint of your device to the environment setting
+`API_ORIGIN`. Your Nest device must be active (screen on) when this runs for the first time.
+Subsequent start up will check the local SQLite database to see if the device already exists. 
 
 **Requirements:**
 - Home Assistant must have MQTT broker configured (Mosquitto addon recommended)
@@ -366,7 +308,7 @@ config: {
 - If using authentication, create a dedicated MQTT user in Home Assistant
 
 <Note>
-  Once configured, your Nest thermostats will automatically appear in Home Assistant under MQTT devices with the prefix `nolongerevil`. They will support climate control, temperature monitoring, and scheduling through Home Assistant.
+  Once configured, your Nest thermostats will automatically appear in Home Assistant under MQTT devices with the entity `climate.nest_DEVICE_ID`. They will support climate control, temperature monitoring, and scheduling through Home Assistant.
 </Note>
 
 ---
@@ -403,25 +345,12 @@ If you want to access your thermostat remotely (outside your local network):
 
 ---
 
-## Step 8: Link Your Device
-
-Once your thermostat is flashed and connected to your server:
-
-1. On your Nest device, navigate to: **Settings → Nest App → Get Entry Code**
-2. The device will display a unique entry code
-3. Enter this code in your frontend dashboard (or the hosted dashboard if you're using that)
-4. Your device is now linked and ready to use!
-
----
-
 ## 🎉 Success!
 
 Your self-hosted No Longer Evil infrastructure is now running!
 
 **What's Running:**
-- ✅ Convex backend (Docker container)
 - ✅ API Server (Docker container)
-- ✅ Frontend (if you set it up)
 - ✅ Your thermostat is connected to YOUR server
 
 ---
