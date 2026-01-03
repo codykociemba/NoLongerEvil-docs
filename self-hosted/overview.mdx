@@ -23,30 +23,22 @@ Self-hosting No Longer Evil involves running your own infrastructure stack inste
   <Step title="Run the Installer">
     Clone the repository and run `install.sh`, which sets up firmware flashing tools and guides you through server configuration.
   </Step>
-  <Step title="Docker Containers Start">
-    The installer launches Docker containers for:
-    - **Convex Backend** - Database for storing device state, schedules, and configuration
-    - **API Server** - Handles communication with your Nest thermostat (replicates Google's API)
-  </Step>
   <Step title="Flash Your Thermostat">
     Use the firmware flashing tools to flash custom firmware to your Nest Gen 1 or Gen 2 thermostat via USB. The firmware redirects all traffic from Google servers to **your server**.
+  </Step>
+  <Step title="Start your Docker container">
+    Using the `open-soure-prototype` branch, copy the `docker-compose.yml.example` to `docker-compose.yml` and modify for your environment. Then start the server container.
   </Step>
   <Step title="Thermostat Connects to Your Server">
     Once flashed, your thermostat connects to your self-hosted API server instead of Google's servers. All communication stays within your infrastructure.
   </Step>
-  <Step title="Optional: Set Up Frontend">
-    The installer does NOT start a frontend automatically. You can:
-    - Run your own frontend locally (`cd frontend && npm install && npm run dev`)
-    - Use the hosted dashboard at nolongerevil.com (connects to your self-hosted API)
-    - Build custom integrations using the API
-  </Step>
   <Step title="Control Your Thermostat">
-    Access your thermostat through your frontend, Home Assistant (via MQTT), or directly through the API.
+    Access your thermostat through your Home Assistant (via MQTT), or directly through the API.
   </Step>
 </Steps>
 
 <Note>
-  **Key Difference from Hosted**: You're responsible for running the API server, database, and optional frontend. The hosted service runs all of this for you.
+  **Key Difference from Hosted**: You're responsible for running the API server. The hosted service runs this and a frontend for you.
 </Note>
 
 ## What You'll Need
@@ -81,25 +73,20 @@ Self-hosting No Longer Evil involves running your own infrastructure stack inste
 When self-hosting, you're responsible for running and maintaining:
 
 <CardGroup cols={2}>
-  <Card title="API Server (Port 443)" icon="server">
+  <Card title="API Server" icon="server">
     Handles thermostat communication
 
     Replicates Google's Nest API
   </Card>
-  <Card title="Control API (Port 8081)" icon="tower-broadcast">
+  <Card title="Control API" icon="tower-broadcast">
     Provides control interface
 
     For dashboards and automation
   </Card>
-  <Card title="Database (Convex)" icon="database">
+  <Card title="MQTT" icon="rss">
     Stores device state
 
     Configuration and logs
-  </Card>
-  <Card title="Frontend (Optional)" icon="browser">
-    Web dashboard
-
-    Can use hosted version instead
   </Card>
 </CardGroup>
 
