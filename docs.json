@@ -1,0 +1,113 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "No Longer Evil",
+  "colors": {
+    "primary": "#0D9373",
+    "light": "#07C983",
+    "dark": "#0D9373"
+  },
+  "favicon": "/favicon.svg",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "compatibility",
+              "why-google-blocks",
+              "choose-your-path"
+            ]
+          },
+          {
+            "group": "Hosted Service (Recommended)",
+            "pages": [
+              "hosted/overview",
+              "hosted/installation",
+              "hosted/claiming-device",
+              "hosted/troubleshooting"
+            ]
+          },
+          {
+            "group": "Self-Hosted (Advanced)",
+            "pages": [
+              "self-hosted/overview",
+              "self-hosted/prerequisites",
+              "self-hosted/installation",
+              "self-hosted/troubleshooting"
+            ]
+          },
+          {
+            "group": "Support",
+            "pages": [
+              "support/faq"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "API Documentation",
+            "pages": [
+              "api-reference/introduction",
+              "api-reference/authentication"
+            ]
+          },
+          {
+            "group": "User API (v1)",
+            "pages": [
+              "api-reference/v1/devices",
+              "api-reference/v1/get-status",
+              "api-reference/v1/set-temperature",
+              "api-reference/v1/set-mode",
+              "api-reference/v1/set-temperature-range",
+              "api-reference/v1/set-away",
+              "api-reference/v1/set-fan",
+              "api-reference/v1/set-lock",
+              "api-reference/v1/schedule",
+              "api-reference/v1/delete-device"
+            ]
+          }
+        ]
+      }
+    ],
+    "global": {
+      "anchors": [
+        {
+          "anchor": "GitHub",
+          "href": "https://github.com/codykociemba/NoLongerEvil-Thermostat",
+          "icon": "github"
+        },
+        {
+          "anchor": "Community",
+          "href": "https://discord.gg/AffeGaJ5XS",
+          "icon": "discord"
+        }
+      ]
+    }
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "Support",
+        "href": "mailto:cody@hackhouse.io"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Dashboard",
+      "href": "https://nolongerevil.com/dashboard"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/codykociemba/NoLongerEvil-Thermostat",
+      "discord": "https://discord.gg/AffeGaJ5XS"
+    }
+  }
+}
