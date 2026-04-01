@@ -1,0 +1,51 @@
+---
+title: POST /nest/upload
+description: 'Device log upload endpoint'
+---
+
+## Overview
+
+Receives device log files uploaded by the thermostat. The device periodically uploads diagnostic logs to this endpoint.
+
+<Info>
+  This endpoint is part of the **Device Protocol API** on port 8000. It is called directly by thermostat firmware.
+</Info>
+
+## Endpoint
+
+```
+POST http://your-server:8000/nest/upload
+```
+
+## Request
+
+The device sends raw bytes (often gzip-compressed) as the request body. The `Content-Type` may vary by firmware version.
+
+```http
+POST /nest/upload HTTP/1.1
+Host: your-server:8000
+Authorization: Basic <base64(d.SERIAL.SUFFIX:password)>
+Content-Type: application/octet-stream
+
+<binary log data, possibly gzip-compressed>
+```
+
+## Response
+
+### Success (200 OK)
+
+```json
+{"status": "ok"}
+```
+
+The server always returns `200 OK` after reading the body. The response is the same regardless of whether log storage is enabled.
+
+## Log Storage
+
+By default, uploaded logs are discarded. To store them on disk, set `STORE_DEVICE_LOGS=true` in the server environment.
+
+When enabled:
+- Logs are decompressed (if gzip) and saved to `/app/data/device_logs/{serial}/{timestamp}.log`
+- Each upload creates a new file with the UTC timestamp as the filename
+
+This is useful for debugging firmware issues or analyzing device behavior.

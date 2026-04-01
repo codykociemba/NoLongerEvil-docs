@@ -1,0 +1,122 @@
+---
+title: GET /api/events
+description: 'Server-Sent Events stream of device state changes'
+---
+
+## Overview
+
+`/api/events` is a **Server-Sent Events (SSE)** endpoint that streams a lightweight notification whenever any device's state changes. Use it to keep a UI or integration updated without polling `/status` repeatedly.
+
+## Endpoint
+
+```
+GET http://your-server:8082/api/events
+```
+
+## Response
+
+The endpoint sends an SSE stream. Each event has:
+
+```
+data: {"serial": "02AB01AC012345678"}
+
+data: {"serial": "02AB01AC012345678"}
+```
+
+The event payload only contains the serial number of the device that changed. To get the new state, follow up with a `GET /status?serial={serial}` call.
+
+### Response Headers
+
+```http
+Content-Type: text/event-stream
+Cache-Control: no-cache
+X-Accel-Buffering: no
+```
+
+<Note>
+  The `X-Accel-Buffering: no` header is included for nginx compatibility. Without it, nginx may buffer the stream and delay delivery of events.
+</Note>
+
+## Examples
+
+<CodeGroup>
+
+```javascript JavaScript (EventSource)
+const source = new EventSource('http://your-server:8082/api/events');
+
+source.onmessage = async (event) => {
+  const { serial } = JSON.parse(event.data);
+  console.log(`Device changed: ${serial}`);
+
+  // Fetch updated status
+  const resp = await fetch(`http://your-server:8082/status?serial=${serial}`);
+  const status = await resp.json();
+  console.log(`New temperature: ${status.current_temperature}°C`);
+};
+
+source.onerror = (err) => {
+  console.error('SSE connection error', err);
+};
+```
+
+```python Python (sseclient)
+import sseclient
+import requests
+import json
+
+resp = requests.get('http://your-server:8082/api/events', stream=True)
+client = sseclient.SSEClient(resp)
+
+for event in client.events():
+    data = json.loads(event.data)
+    print(f"Device changed: {data['serial']}")
+```
+
+```bash cURL
+curl -N http://your-server:8082/api/events
+```
+
+</CodeGroup>
+
+## Behavior
+
+- The connection stays open indefinitely until the client disconnects.
+- Events are emitted whenever a device state change is processed (subscribe PUT, command execution).
+- There is no initial burst of events on connection — only future changes are sent.
+- If the server restarts, the SSE connection will drop and the client must reconnect.
+
+## Use Case: Live Dashboard
+
+```javascript
+// Auto-reconnecting SSE client
+function connectEvents(onDeviceChange) {
+  let source = null;
+
+  function connect() {
+    source = new EventSource('http://your-server:8082/api/events');
+    source.onmessage = async (e) => {
+      const { serial } = JSON.parse(e.data);
+      const resp = await fetch(`http://your-server:8082/status?serial=${serial}`);
+      onDeviceChange(await resp.json());
+    };
+    source.onerror = () => {
+      source.close();
+      setTimeout(connect, 5000); // reconnect after 5s
+    };
+  }
+
+  connect();
+  return () => source?.close();
+}
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="GET /status" href="/api-reference/control/status">
+    Get full device state after an event
+  </Card>
+  <Card title="POST /notify-device" href="/api-reference/control/notify">
+    Manually trigger a push to subscribers
+  </Card>
+</CardGroup>

@@ -1,0 +1,40 @@
+---
+title: GET /nest/ping
+description: 'Device protocol health check'
+---
+
+## Overview
+
+Simple health check for the device protocol server (port 8000). Returns `{"status": "ok"}` and a timestamp.
+
+<Info>
+  This is the device protocol health check on **port 8000**. For the control API health check, see [`GET /health`](/api-reference/control/health) on port 8082.
+</Info>
+
+## Endpoint
+
+```
+GET http://your-server:8000/nest/ping
+```
+
+## Response
+
+### Success (200 OK)
+
+```json
+{
+  "status": "ok",
+  "timestamp": 1707148800000
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status` | string | Always `"ok"` |
+| `timestamp` | number | Current server time in milliseconds since Unix epoch |
+
+## Example
+
+```bash
+curl http://your-server:8000/nest/ping
+```

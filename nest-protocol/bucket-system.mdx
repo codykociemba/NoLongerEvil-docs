@@ -1,0 +1,120 @@
+---
+title: Bucket System
+description: 'How device state is organized — object keys, revisions, timestamps, and all 28 bucket types'
+---
+
+## Overview
+
+Device state is organized into named containers called **buckets**. Each bucket has an `object_key`, `object_revision`, and `object_timestamp`. All communication between device and server is framed in terms of buckets.
+
+---
+
+## Object Key Format
+
+```
+{type}.{identifier}
+```
+
+Examples:
+- `device.09AA01AB12345678` — device bucket for serial `09AA01AB12345678`
+- `shared.09AA01AB12345678` — shared bucket for the same device
+- `structure.abc123` — structure bucket for a home
+- `user.homeassistant` — user bucket for pairing
+
+The type prefix determines how the device processes the data. The identifier is usually the device serial number but varies by bucket type (e.g., structure IDs, user IDs).
+
+---
+
+## Revision and Timestamp
+
+Every bucket tracks two versioning fields:
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `object_revision` | int32 | Monotonically increasing write counter |
+| `object_timestamp` | int64 | Milliseconds since Unix epoch — **primary sync authority** |
+
+### Sync Rules
+
+**Timestamp is the sole authority** for determining which data is newer:
+
+| Condition | Result |
+|-----------|--------|
+| `server_timestamp > device_timestamp` | Accept server data |
+| `device_timestamp > server_timestamp` | Keep local data (server data is stale) |
+| Timestamps equal, `server_revision > device_revision` | Accept server data |
+| Timestamps equal, `server_revision ≤ device_revision` | Keep local data |
+| `server_timestamp = 0` | Sentinel: server has no data — device should upload its state |
+
+### Zero Timestamp Sentinel
+
+A timestamp of `0` signals "no data exists." When the device receives `object_timestamp: 0`, it treats this as an invitation to upload its current local state via PUT. This happens after device reset or server-side data deletion.
+
+### Conditional Writes
+
+Most buckets use `base_object_revision` in PUT requests — informational only, no validation. One exception:
+
+**The `shared` bucket** uses `if_object_revision` — a conditional write guard. If the revision doesn't match the server's current revision, the server should reject the write. This prevents the device from overwriting a temperature change the server pushed while the device was preparing its PUT.
+
+---
+
+## All 28 Bucket Types
+
+| Bucket | Object Key | Direction | Priority |
+|--------|-----------|-----------|----------|
+| `device` | `device.{serial}` | Bidirectional (restricted) | Essential |
+| `shared` | `shared.{serial}` | Bidirectional | Essential |
+| `structure` | `structure.{structureId}` | Server → device | Essential |
+| `user` | `user.{userId}` | Server → device | Essential |
+| `schedule` | `schedule.{serial}` | Bidirectional (guarded) | Essential |
+| `where` | `where.{whereId}` | Bidirectional | Secondary |
+| `message` | `message.{messageId}` | Bidirectional | Secondary |
+| `link` | `link.{linkId}` | Server → device | Secondary |
+| `custom_schedule` | `custom_schedule.{id}` | Bidirectional | Secondary |
+| `device_alert_dialog` | `device_alert_dialog.{id}` | Server → device | Secondary |
+| `hvac_partner` | `hvac_partner.{partnerId}` | Bidirectional | Specialized |
+| `topaz` | `topaz.{topazId}` | Server → device | Specialized |
+| `kryptonite` | `kryptonite.{sensorId}` | Bidirectional | Specialized |
+| `servicegroup` | `servicegroup.{id}` | Server → device | Specialized |
+| `occupancy` | `occupancy.{serial}` | Device → server | Specialized |
+| `demand_response` | `demand_response.{id}` | Bidirectional | Specialized |
+| `demand_response_event` | `demand_response_event.{eventId}` | Bidirectional | Specialized |
+| `utility` | `utility.{id}` | Server → device | Specialized |
+| `diamond_sensor_config` | `diamond_sensor_config.{id}` | Server → device | Specialized |
+| `diamond_sensor_event` | `diamond_sensor_event.{id}` | Bidirectional | Specialized |
+| `rate_plan` | `rate_plan.{id}` | Server → device | Specialized |
+| `tou` | `tou.{id}` | Bidirectional | Specialized |
+| `demand_charge` | `demand_charge.{id}` | Server → device | Specialized |
+| `demand_charge_event` | `demand_charge_event.{eventId}` | Bidirectional | Specialized |
+| `rcs_settings` | `rcs_settings.{id}` | Bidirectional | Specialized |
+| `cloud_algo` | `cloud_algo.{id}` | Bidirectional | Specialized |
+| `diagnostics` | `diagnostics.{id}` | Bidirectional | Specialized |
+| `tuneups` | `tuneups.{id}` | Bidirectional | Specialized |
+
+**Direction key:**
+
+| Direction | Meaning |
+|-----------|---------|
+| Server → device | Server pushes on subscribe; device never sends in PUT |
+| Device → server | Device sends via PUT; server stores |
+| Bidirectional | Both sides read and write (some have per-field restrictions) |
+
+For most home server implementations, only the **essential** buckets need active handling: `device`, `shared`, `structure`, `user`, and `schedule`.
+
+---
+
+## Write Protection
+
+The `device` bucket has 113 device-only fields that the server cannot write. If you push a value for one of these fields, the device compares it against its local value and if different, re-sends its own value in the next PUT — actively overwriting your change.
+
+Accept these re-PUTs normally. Do not try to fight them.
+
+See [device bucket](/nest-protocol/bucket-device) for the full list.
+
+---
+
+## Merge Strategy
+
+- **Subscribe responses (server → device):** Shallow merge — device applies the fields in `value` to its local state
+- **Schedule bucket:** Full replacement — always push the complete schedule JSON
+- **PUT requests (device → server):** Inline merge — data fields mixed with metadata at the top level

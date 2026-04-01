@@ -1,56 +1,82 @@
 ---
 title: Authentication
-description: 'API key authentication for the No Longer Evil API'
+description: 'Authentication differences between the hosted service and self-hosted server'
 ---
 
 ## Overview
 
-The No Longer Evil API uses API key authentication with Bearer tokens. All requests must include a valid API key in the `Authorization` header.
+Authentication works differently depending on whether you use the hosted service or the self-hosted server.
 
-<CardGroup cols={2}>
-  <Card title="Secure" icon="shield-check">
-    SHA-256 hashed keys with one-time display on generation
-  </Card>
-  <Card title="Scoped" icon="sliders">
-    Granular permissions with read and write scopes
-  </Card>
-</CardGroup>
+| | Hosted Service | Self-Hosted |
+|---|---|---|
+| **Control API** | `nle_` Bearer token (required) | No auth by default |
+| **Device Protocol** | HTTP Basic (device firmware) | HTTP Basic (device firmware) |
 
 ---
 
-## API Key Authentication
+## Self-Hosted: Control API (Port 8082)
 
-All API requests require authentication using an API key. Keys are managed through the Settings page and support granular permissions.
+<Info>
+  The self-hosted control API (port 8082) has **no authentication by default**. Any client on your network can call it without credentials.
+</Info>
 
-### Getting an API Key
+By design, the control API is intended for use on a trusted local network. If you expose port 8082 to the public internet, you should place it behind a reverse proxy (nginx, Caddy, Traefik) that handles authentication.
 
-1. **Navigate to Settings**: Go to [https://nolongerevil.com/settings](https://nolongerevil.com/settings)
-2. **Click API Keys tab**: Access the API key management interface
-3. **Generate New Key**: Click "Generate New Key"
-4. **Configure the key**:
-   - **Name**: Descriptive name (e.g., "Home Assistant", "Python Script")
-   - **Scopes**: Select `read`, `write`, or both
-     - `read`: View device status and settings
-     - `write`: Control devices (temperature, mode, fan, etc.)
-5. **Copy the key immediately**: The full key is shown only once!
+```bash
+# No Authorization header needed
+curl -X POST http://your-server:8082/command \
+  -H "Content-Type: application/json" \
+  -d '{"serial": "02AB01AC012345678", "command": "set_temperature", "value": 21}'
+```
+
+### Optional: API Key Auth (via Reverse Proxy)
+
+If you configure a reverse proxy with HTTP Basic Auth or a Bearer token header, the control API passes those headers through unchanged. The Python server itself does not validate them.
+
+---
+
+## Self-Hosted: Device Protocol (Port 8000)
+
+Nest thermostats use **HTTP Basic Auth** on every request to the device protocol endpoints. The server extracts the device serial from the credentials — it does **not** validate passwords.
+
+```
+Authorization: Basic <base64(userid:password)>
+```
+
+The user ID follows the format `d.{SERIAL}.{suffix}`:
+
+```
+d.09AA01AB12345678.BC7C9039
+→ serial = 09AA01AB12345678
+```
+
+The server accepts all credentials. This is intentional — there is no credential provisioning in the self-hosted deployment. The serial extracted from Basic Auth is used for device identification only.
+
+---
+
+## Hosted Service: API Key Authentication
 
 <Warning>
-  **API keys are shown only once** when generated. Store them securely - you cannot retrieve them later. The key starts with `nle_` followed by 64 hexadecimal characters.
+  API key authentication (`nle_` prefixed keys) applies to the **hosted service at nolongerevil.com only**. Self-hosted deployments do not use this system.
 </Warning>
+
+### Getting a Hosted API Key
+
+1. Go to [https://nolongerevil.com/settings](https://nolongerevil.com/settings)
+2. Click the **API Keys** tab
+3. Click **Generate New Key**
+4. Select scopes: `read` and/or `write`
+5. Copy the key immediately — it's shown only once
 
 ### API Key Format
 
-API keys follow this format:
-
 ```
-nle_abc123def456... (64 hex characters after nle_)
+nle_012e7ffdd4ac7b83848c849c8417d8b632f076c2c10e63ebf69aae3f16b9a914
 ```
 
-Example: `nle_012e7ffdd4ac7b83848c849c8417d8b632f076c2c10e63ebf69aae3f16b9a914`
+### Using a Hosted API Key
 
-### Using Your API Key
-
-Include the API key in the `Authorization` header as a Bearer token:
+Include the key as a Bearer token:
 
 <CodeGroup>
 
@@ -59,183 +85,45 @@ curl https://nolongerevil.com/api/v1/devices \
   -H "Authorization: Bearer nle_your_api_key_here"
 ```
 
-```javascript JavaScript/Node.js
+```javascript JavaScript
 const response = await fetch('https://nolongerevil.com/api/v1/devices', {
-  headers: {
-    'Authorization': 'Bearer nle_your_api_key_here'
-  }
+  headers: { 'Authorization': 'Bearer nle_your_api_key_here' }
 });
 ```
 
 ```python Python
 import requests
-
-headers = {
-    'Authorization': 'Bearer nle_your_api_key_here'
-}
-
-response = requests.get('https://nolongerevil.com/api/v1/devices', headers=headers)
+response = requests.get(
+    'https://nolongerevil.com/api/v1/devices',
+    headers={'Authorization': 'Bearer nle_your_api_key_here'}
+)
 ```
 
 </CodeGroup>
 
 ### API Key Scopes
 
-Scopes control what actions an API key can perform:
-
-| Scope | Description | Example Endpoints |
-|-------|-------------|-------------------|
-| `read` | View device status and settings | `GET /devices`, `GET /thermostat/{id}/status` |
-| `write` | Control devices | `POST /thermostat/{id}/temperature`, `POST /thermostat/{id}/mode` |
-
-<Tip>
-  **Best practice**: Create separate API keys for different integrations with minimum required scopes. For example, a monitoring dashboard only needs `read` scope.
-</Tip>
-
-### Device Restrictions
-
-When creating an API key, you can optionally restrict access to specific devices:
-
-- **No restrictions** (default): Access all devices you own or have shared access to
-- **Specific devices**: Limit access to selected device serial numbers only
-
-This is useful for:
-- Sharing access with third parties for specific devices
-- Creating keys for specific rooms or zones
-- Limiting scope of potentially compromised keys
-
-### Security Best Practices
+| Scope | Description |
+|-------|-------------|
+| `read` | View device status and settings |
+| `write` | Control devices (temperature, mode, fan, etc.) |
 
 <AccordionGroup>
-  <Accordion title="How are API keys stored?" icon="database">
-    API keys are hashed using SHA-256 before storage. The server never stores the plaintext key - only the hash is kept in the database. This means even if the database is compromised, the actual keys cannot be recovered.
+  <Accordion title="How are hosted API keys stored?" icon="database">
+    Keys are hashed using SHA-256 before storage. The plaintext key is never stored — only the hash.
   </Accordion>
-
-  <Accordion title="What if my key is compromised?" icon="shield-exclamation">
-    1. Immediately revoke the compromised key in Settings → API Keys
-    2. Generate a new key with the same or different permissions
-    3. Update your applications with the new key
-
-    The old key stops working immediately upon revocation.
-  </Accordion>
-
-  <Accordion title="Can I rotate keys?" icon="rotate">
-    Yes! Best practice is to rotate API keys periodically:
-
-    1. Generate a new key with the same permissions
-    2. Update your applications to use the new key
-    3. Monitor usage of the old key (check "last used" timestamp)
-    4. Once confirmed the old key is unused, revoke it
-  </Accordion>
-
-  <Accordion title="Key expiration" icon="clock">
-    API keys support optional expiration dates. When creating a key, you can set it to expire after a certain period. This is useful for:
-
-    - Temporary access grants
-    - Time-limited integrations
-    - Compliance requirements
-
-    Expired keys are automatically rejected with a 401 Unauthorized response.
+  <Accordion title="What if my hosted key is compromised?" icon="shield-exclamation">
+    Immediately revoke it in Settings → API Keys, then generate a new key and update your applications.
   </Accordion>
 </AccordionGroup>
 
 ---
 
-## Rate Limiting
-
-API keys are subject to rate limiting to protect the service:
-
-| Authentication Type | Limit | Window |
-|---------------------|-------|--------|
-| User accounts (Clerk) | 100 requests | Per minute |
-| API keys | 20 requests | Per minute |
-
-### Rate Limit Headers
-
-All API responses include rate limit headers:
-
-```
-X-RateLimit-Limit: 20
-X-RateLimit-Remaining: 15
-X-RateLimit-Reset: 2025-01-24T12:34:56.000Z
-```
-
-### Rate Limit Exceeded
-
-When you exceed the rate limit, you'll receive a `429 Too Many Requests` response:
-
-```json
-{
-  "error": "Rate limit exceeded",
-  "retryAfter": "2025-01-24T12:35:00.000Z"
-}
-```
-
-<Tip>
-  Monitor the `X-RateLimit-Remaining` header to track your usage and avoid hitting the limit.
-</Tip>
-
----
-
-## Common Errors
-
-### 401 Unauthorized
-
-```json
-{
-  "error": "Unauthorized"
-}
-```
-
-**Causes:**
-- Missing API key in Authorization header
-- Invalid or expired API key
-- Malformed Authorization header
-
-**Solution:** Verify your API key is correct and formatted as `Authorization: Bearer nle_your_api_key_here`
-
-### 403 Forbidden
-
-```json
-{
-  "error": "Access denied to this device"
-}
-```
-
-**Causes:**
-- API key doesn't have permission to access the device
-- Device serial not in API key's allowed devices list
-- Insufficient scope (e.g., write action with read-only key)
-
-**Solution:** Check your API key permissions in Settings → API Keys
-
----
-
 ## Summary
 
-| Feature | Details |
-|---------|---------|
-| **Authentication Method** | API key with Bearer token |
-| **Key Format** | `nle_` + 64 hex characters |
-| **Storage** | SHA-256 hashed, never stored in plaintext |
-| **Scopes** | `read` (view) and `write` (control) |
-| **Rate Limits** | 20 req/min (API keys), 100 req/min (user accounts) |
-| **Expiration** | Optional, configurable per key |
-| **Tracking** | Last used timestamp |
-
-## Next Steps
-
-<CardGroup cols={2}>
-  <Card title="Get an API Key" icon="key" href="https://nolongerevil.com/settings">
-    Create your first API key
-  </Card>
-  <Card title="List Devices" icon="list" href="/api-reference/v1/devices">
-    Make your first API request
-  </Card>
-  <Card title="Set Temperature" icon="temperature-half" href="/api-reference/v1/set-temperature">
-    Control your thermostat
-  </Card>
-  <Card title="API Introduction" icon="book" href="/api-reference/introduction">
-    Learn about the API
-  </Card>
-</CardGroup>
+| Scenario | Auth Method |
+|----------|-------------|
+| Calling the self-hosted control API from a script | None required |
+| Thermostat connecting to self-hosted device protocol | HTTP Basic (serial extracted, password ignored) |
+| Calling the hosted service API | `Authorization: Bearer nle_...` |
+| Thermostat connecting to hosted service | HTTP Basic (managed by firmware provisioning) |

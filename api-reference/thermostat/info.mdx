@@ -1,0 +1,75 @@
+---
+title: GET /info
+description: 'Server provisioning info — used by the firmware installer'
+---
+
+## Overview
+
+Returns server discovery information used by the firmware installer GUI and provisioning scripts to configure thermostat firmware to point at this server.
+
+<Warning>
+  This endpoint is at the **root level** (`/info`), not under `/nest/`. It is served on **port 8000** (device protocol).
+</Warning>
+
+## Endpoint
+
+```
+GET http://your-server:8000/info
+```
+
+No authentication required.
+
+## Response
+
+### Success (200 OK)
+
+```json
+{
+  "server": "nolongerevil",
+  "version": "1.0.1",
+  "api_origin": "http://192.168.1.100:8000",
+  "cloudregisterurl": "http://192.168.1.100:8000/entry",
+  "ip": "192.168.1.100",
+  "port": 8000,
+  "ssl": false,
+  "require_device_pairing": false,
+  "entry_key_ttl_seconds": 3600
+}
+```
+
+### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `server` | string | Always `"nolongerevil"` |
+| `version` | string | Server software version |
+| `api_origin` | string | Configured `API_ORIGIN` value |
+| `cloudregisterurl` | string | Value to set in thermostat firmware config (`{api_origin}/entry`) |
+| `ip` | string | IP address extracted from `api_origin` |
+| `port` | number | Port extracted from `api_origin` |
+| `ssl` | boolean | Whether `api_origin` uses HTTPS |
+| `require_device_pairing` | boolean | Whether entry key pairing is required |
+| `entry_key_ttl_seconds` | number | How long entry keys remain valid (seconds) |
+
+## Use Case
+
+The firmware installer reads this endpoint to get the `cloudregisterurl` value it needs to embed into the thermostat firmware image during flashing. The installer fetches `/info`, extracts `cloudregisterurl`, and writes it into the firmware configuration at flash time.
+
+The installer also uses `ip`, `port`, and `ssl` to construct the firmware's network configuration.
+
+## Example
+
+```bash
+curl http://your-server:8000/info | jq .
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="GET /api/config" href="/api-reference/control/control-overview">
+    Control API config (port 8082)
+  </Card>
+  <Card title="Self-Hosted Installation" href="/self-hosted/installation">
+    Firmware installer setup guide
+  </Card>
+</CardGroup>

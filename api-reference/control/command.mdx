@@ -1,20 +1,20 @@
 ---
 title: POST /command
-description: 'Send commands to control thermostat'
+description: 'Send a control command to a thermostat'
 ---
 
 ## Overview
 
-The `/command` endpoint allows you to control thermostat settings programmatically from the Control API (port 8081).
+The `/command` endpoint lets you control thermostat settings programmatically from the Control API (port 8082).
 
 ## Endpoint
 
 ```
-POST http://localhost:8081/command
+POST http://your-server:8082/command
 ```
 
 <Warning>
-  This endpoint has **no authentication** by default. Secure it appropriately if exposing publicly.
+  This endpoint has **no authentication** by default. Secure it with a reverse proxy if exposing publicly.
 </Warning>
 
 ## Request
@@ -23,7 +23,7 @@ POST http://localhost:8081/command
 
 ```http
 POST /command HTTP/1.1
-Host: localhost:8081
+Host: your-server:8082
 Content-Type: application/json
 ```
 
@@ -32,8 +32,8 @@ Content-Type: application/json
 ```json
 {
   "serial": "02AB01AC012345678",
-  "action": "temp",
-  "value": "22"
+  "command": "set_temperature",
+  "value": 21.5
 }
 ```
 
@@ -41,17 +41,199 @@ Content-Type: application/json
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `serial` | String | Yes | Device serial number (17 chars) |
-| `action` | String | Yes | Command type (see below) |
-| `value` | String | Yes | Command value |
+| `serial` | string | Yes | Device serial number |
+| `command` | string | Yes | Command name (see below) |
+| `value` | varies | Yes | Command value (type depends on command) |
 
-### Supported Actions
+---
 
-| Action | Description | Value Format | Example |
-|--------|-------------|--------------|---------|
-| `temp` / `temperature` | Set target temperature | Temperature in °C | `"22"` or `"22.5"` |
-| `away` | Set away mode | `"on"` or `"off"` | `"on"` |
-| `set` | Set HVAC mode | `"heat"`, `"cool"`, `"range"`, `"off"` | `"heat"` |
+## Supported Commands
+
+### `set_temperature`
+
+Set the target temperature. Routes to the `shared` bucket.
+
+| Value type | Description | Example |
+|------------|-------------|---------|
+| `number` | Single temperature in °C | `21.5` |
+| `{"high": number, "low": number}` | Range mode (heat-cool) | `{"high": 24, "low": 18}` |
+
+```json
+{"serial": "02AB01AC012345678", "command": "set_temperature", "value": 21.5}
+```
+
+```json
+{"serial": "02AB01AC012345678", "command": "set_temperature", "value": {"high": 24, "low": 18}}
+```
+
+<Note>
+  Temperatures are always in Celsius (4.5–32°C). The thermostat displays them in the user's preferred scale. Temperature changes also set `target_change_pending: true` to wake the display.
+</Note>
+
+---
+
+### `set_mode`
+
+Set the HVAC mode. Routes to the `shared` bucket.
+
+| Value | Description |
+|-------|-------------|
+| `"off"` | System off |
+| `"heat"` | Heating only |
+| `"cool"` | Cooling only |
+| `"heat-cool"` | Auto (maintains temperature range) |
+| `"emergency"` | Emergency heat (requires `has_emer_heat`) |
+
+```json
+{"serial": "02AB01AC012345678", "command": "set_mode", "value": "heat"}
+```
+
+<Note>
+  The server checks device capabilities before applying the mode. Requesting `heat` on a cooling-only device returns a 400 error.
+
+  `"eco"` is not a valid mode here — use `set_away` instead to engage eco mode.
+</Note>
+
+---
+
+### `set_away`
+
+Enable or disable eco (away) mode via `manual_eco_all` in the structure bucket.
+
+| Value | Description |
+|-------|-------------|
+| `true` | Enable eco/away mode |
+| `false` | Return to normal operation |
+
+```json
+{"serial": "02AB01AC012345678", "command": "set_away", "value": true}
+```
+
+<Note>
+  This uses `manual_eco_all` rather than the `away` field, because the firmware's schedule preconditioning can revert `away`-triggered eco but respects manual eco. A `manual_eco_timestamp` is automatically set to the current time.
+</Note>
+
+---
+
+### `set_fan`
+
+Control the fan. Routes to the `device` bucket. Requires `has_fan: true`.
+
+| Value | Description |
+|-------|-------------|
+| `"on"` | Run fan using stored duration preference (default 60 min) |
+| `"auto"` | Turn off fan timer (auto mode) |
+| `number` | Run fan for this many seconds |
+
+```json
+{"serial": "02AB01AC012345678", "command": "set_fan", "value": "on"}
+```
+
+```json
+{"serial": "02AB01AC012345678", "command": "set_fan", "value": 1800}
+```
+
+---
+
+### `set_eco_temperatures`
+
+Set the eco mode (away) temperature bounds. Routes to the `device` bucket.
+
+```json
+{
+  "serial": "02AB01AC012345678",
+  "command": "set_eco_temperatures",
+  "value": {"high": 26.0, "low": 15.5}
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `high` | Upper eco temperature in °C |
+| `low` | Lower eco temperature in °C |
+
+---
+
+### `set_schedule`
+
+Replace the full weekly schedule. Routes to the `schedule` bucket (full replacement, not merge).
+
+```json
+{
+  "serial": "02AB01AC012345678",
+  "command": "set_schedule",
+  "value": {
+    "ver": 2,
+    "schedule_mode": "HEAT",
+    "days": {
+      "0": [{"type": "HEAT", "time": 25200, "temp": 20.0}],
+      "1": [{"type": "HEAT", "time": 25200, "temp": 20.0}]
+    }
+  }
+}
+```
+
+Schedule format requirements:
+- `ver` must be `2`
+- `schedule_mode`: `"HEAT"`, `"COOL"`, or `"RANGE"`
+- Day keys: `"0"` (Monday) through `"6"` (Sunday)
+- `time`: seconds from midnight (0–86399)
+- `type`: `"HEAT"`, `"COOL"`, or `"RANGE"`
+- `RANGE` type requires `"temp-min"` and `"temp-max"` instead of `"temp"`
+
+---
+
+### `set_schedule_mode`
+
+Change the active schedule mode without replacing the schedule. Routes to the `shared` bucket.
+
+| Value | Description |
+|-------|-------------|
+| `"HEAT"` | Heat schedule |
+| `"COOL"` | Cool schedule |
+| `"RANGE"` | Heat-cool range schedule |
+
+```json
+{"serial": "02AB01AC012345678", "command": "set_schedule_mode", "value": "HEAT"}
+```
+
+---
+
+### `set_device_setting`
+
+Set one or more cloud-writable device bucket fields. Routes to the `device` bucket. Only fields from the whitelist are accepted.
+
+```json
+{
+  "serial": "02AB01AC012345678",
+  "command": "set_device_setting",
+  "value": {
+    "temperature_scale": "F",
+    "learning_mode": true
+  }
+}
+```
+
+<Accordion title="Whitelisted device fields">
+
+| Category | Fields |
+|----------|--------|
+| Safety | `lower_safety_temp_enabled`, `upper_safety_temp_enabled`, `lower_safety_temp`, `upper_safety_temp` |
+| Temperature lock | `temp_lock_on`, `temp_lock_pin_hash`, `temp_lock_high_temp`, `temp_lock_low_temp` |
+| Learning | `learning_mode`, `preconditioning_enabled`, `preconditioning_active` |
+| Humidity | `target_humidity_enabled`, `target_humidity` |
+| Display | `temperature_scale`, `time_to_target`, `time_to_target_training_status` |
+| Sunblock | `sunlight_correction_enabled` |
+| Fan | `fan_timer_duration_minutes`, `fan_duty_cycle`, `fan_duty_start_time`, `fan_duty_end_time`, `fan_schedule_speed` |
+| Heat pump | `heat_pump_aux_threshold_enabled`, `heat_pump_aux_threshold`, `heat_pump_comp_threshold_enabled`, `heat_pump_comp_threshold` |
+| Wiring | `equipment_type`, `heat_source` |
+| Hot water | `hot_water_boost_time_to_end`, `hot_water_active` |
+| Filter | `filter_reminder_enabled`, `filter_reminder_level` |
+| Locale | `postal_code`, `country_code` |
+
+</Accordion>
+
+---
 
 ## Response
 
@@ -60,10 +242,13 @@ Content-Type: application/json
 ```json
 {
   "success": true,
-  "serial": "02AB01AC012345678",
-  "action": "temp",
-  "value": "22",
-  "message": "Command sent successfully"
+  "data": {
+    "object_key": "shared.02AB01AC012345678",
+    "values": {
+      "target_temperature": 21.5,
+      "target_change_pending": true
+    }
+  }
 }
 ```
 
@@ -71,230 +256,78 @@ Content-Type: application/json
 
 ```json
 {
-  "error": "Invalid action",
-  "message": "Action must be one of: temp, temperature, away, set"
+  "success": false,
+  "message": "Unknown command: set_foo"
 }
 ```
-
-### Error (404 Not Found)
 
 ```json
 {
-  "error": "Device not found",
-  "message": "No device with serial 02AB01AC012345678"
+  "success": false,
+  "message": "Device does not support heating (can_heat=false)"
 }
 ```
+
+### Error (500 Internal Server Error)
+
+```json
+{
+  "success": false,
+  "message": "..."
+}
+```
+
+---
 
 ## Examples
 
 <CodeGroup>
 
 ```bash Set Temperature
-curl -X POST http://localhost:8081/command \
+curl -X POST http://your-server:8082/command \
   -H "Content-Type: application/json" \
-  -d '{
-    "serial": "02AB01AC012345678",
-    "action": "temp",
-    "value": "22"
-  }'
+  -d '{"serial": "02AB01AC012345678", "command": "set_temperature", "value": 21.5}'
 ```
 
-```bash Enable Away Mode
-curl -X POST http://localhost:8081/command \
+```bash Set Mode to Heat
+curl -X POST http://your-server:8082/command \
   -H "Content-Type: application/json" \
-  -d '{
-    "serial": "02AB01AC012345678",
-    "action": "away",
-    "value": "on"
-  }'
+  -d '{"serial": "02AB01AC012345678", "command": "set_mode", "value": "heat"}'
 ```
 
-```bash Set HVAC Mode
-curl -X POST http://localhost:8081/command \
+```bash Enable Eco Mode
+curl -X POST http://your-server:8082/command \
   -H "Content-Type: application/json" \
-  -d '{
-    "serial": "02AB01AC012345678",
-    "action": "set",
-    "value": "heat"
-  }'
-```
-
-```javascript JavaScript/Node.js
-const axios = require('axios');
-
-async function setTemperature(serial, temp) {
-  const response = await axios.post('http://localhost:8081/command', {
-    serial,
-    action: 'temp',
-    value: temp.toString()
-  });
-  
-  return response.data;
-}
-
-// Usage
-setTemperature('02AB01AC012345678', 22)
-  .then(result => console.log('Temperature set:', result))
-  .catch(err => console.error('Error:', err));
+  -d '{"serial": "02AB01AC012345678", "command": "set_away", "value": true}'
 ```
 
 ```python Python
 import requests
 
-def set_temperature(serial, temp):
-    response = requests.post(
-        'http://localhost:8081/command',
-        json={
-            'serial': serial,
-            'action': 'temp',
-            'value': str(temp)
-        }
-    )
-    return response.json()
+def send_command(serial, command, value):
+    resp = requests.post('http://your-server:8082/command', json={
+        'serial': serial,
+        'command': command,
+        'value': value
+    })
+    return resp.json()
 
-# Usage
-result = set_temperature('02AB01AC012345678', 22)
-print('Temperature set:', result)
+# Set temperature to 21°C
+send_command('02AB01AC012345678', 'set_temperature', 21.0)
+
+# Switch to cool mode
+send_command('02AB01AC012345678', 'set_mode', 'cool')
 ```
 
 </CodeGroup>
 
-## Use Cases
-
-### 1. Home Automation Integration
-
-```javascript
-// Home Assistant / Node-RED integration
-async function handleTemperatureChange(newTemp) {
-  await fetch('http://localhost:8081/command', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      serial: process.env.THERMOSTAT_SERIAL,
-      action: 'temp',
-      value: newTemp.toString()
-    })
-  });
-}
-```
-
-### 2. Schedule Automation
-
-```javascript
-// Set temperature based on schedule
-const schedule = [
-  { time: '06:00', temp: 21 },  // Morning
-  { time: '09:00', temp: 18 },  // Away
-  { time: '17:00', temp: 22 },  // Evening
-  { time: '22:00', temp: 19 }   // Night
-];
-
-cron.schedule('* * * * *', () => {
-  const now = new Date().toTimeString().slice(0, 5);
-  const entry = schedule.find(s => s.time === now);
-  
-  if (entry) {
-    setTemperature(SERIAL, entry.temp);
-  }
-});
-```
-
-### 3. Voice Assistant Integration
-
-```javascript
-// Alexa/Google Home webhook
-app.post('/alexa/temperature', async (req, res) => {
-  const temp = req.body.value;
-  
-  await fetch('http://localhost:8081/command', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      serial: THERMOSTAT_SERIAL,
-      action: 'temp',
-      value: temp
-    })
-  });
-  
-  res.json({ speech: `Setting temperature to ${temp} degrees` });
-});
-```
-
-## Command Details
-
-### Temperature Command
-
-**Actions**: `temp` or `temperature`
-
-**Value**: Temperature in Celsius (accepts decimals)
-
-```json
-{
-  "serial": "02AB01AC012345678",
-  "action": "temp",
-  "value": "21.5"
-}
-```
-
-<Note>
-  The thermostat will round to the nearest 0.5°C increment.
-</Note>
-
-### Away Mode Command
-
-**Action**: `away`
-
-**Value**: `"on"` or `"off"`
-
-```json
-{
-  "serial": "02AB01AC012345678",
-  "action": "away",
-  "value": "on"
-}
-```
-
-When away mode is enabled:
-- Target temperature adjusted (lower in winter, higher in summer)
-- Motion detection disabled
-- Learning algorithms paused
-
-### HVAC Mode Command
-
-**Action**: `set`
-
-**Value**: `"heat"`, `"cool"`, `"range"`, or `"off"`
-
-```json
-{
-  "serial": "02AB01AC012345678",
-  "action": "set",
-  "value": "heat"
-}
-```
-
-**Modes**:
-- `heat` - Heating only
-- `cool` - Cooling only
-- `range` - Heat/cool (maintains temperature range)
-- `off` - System off
-
-## Rate Limiting
-
-<Info>
-  **Recommended**: Max 10 commands per minute per device
-
-  Excessive commands may cause:
-  - Device unresponsiveness
-  - Increased wear on HVAC equipment
-  - Battery drain on thermostat
-</Info>
+---
 
 ## Next Steps
 
 <CardGroup cols={2}>
   <Card title="GET /status" href="/api-reference/control/status">
-    Query device status and current settings
+    Query current device state
   </Card>
   <Card title="GET /api/devices" href="/api-reference/control/devices">
     List all connected devices

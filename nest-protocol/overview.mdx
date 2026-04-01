@@ -1,0 +1,90 @@
+---
+title: Overview
+description: 'What the Nest Cloud Protocol is and how NoLongerEvil implements it'
+---
+
+## What Is the Nest Cloud Protocol?
+
+The Nest thermostat uses a custom HTTP-based long-poll protocol to communicate with cloud servers. Rather than WebSockets or REST, the device maintains a persistent HTTP connection where the server holds the response open and streams updates to the device using chunked transfer encoding.
+
+This protocol was reverse-engineered and documented by [Chris Serio (cjserio / @SirHeroic)](https://github.com/cjserio) as the [Nest Cloud Protocol Reference](https://github.com/cjserio/nest-thermostat-protocol-docs). The NoLongerEvil self-hosted server is a Python implementation of this protocol.
+
+<Note>
+  The documentation in this section is drawn from revision 2.9 of the Nest Cloud Protocol Reference by Chris Serio. All credit for the underlying protocol research belongs to the original author.
+</Note>
+
+---
+
+## Key Concepts
+
+| Concept | Description |
+|---------|-------------|
+| **Subscribe connection** | A persistent HTTP connection where the device waits for server-pushed updates |
+| **Server push** | The server wakes a sleeping device by sending data on the open connection |
+| **Chunked encoding** | Required for server push — allows the server to hold connections open and stream data |
+| **Buckets** | Named data containers (e.g., `device`, `shared`, `schedule`) that hold thermostat state |
+| **WoWLAN** | WiFi Wake-on-LAN — the WiFi hardware keeps the TCP socket alive while the device CPU sleeps |
+
+---
+
+## Protocol Characteristics
+
+| Characteristic | Value |
+|----------------|-------|
+| Transport | HTTP/1.1 over TLS |
+| Encoding | JSON request/response bodies |
+| Connection model | Device-initiated, server-held open |
+| Push mechanism | Chunked transfer encoding |
+| Keep-alive | WiFi hardware maintains TCP connection during CPU sleep |
+| Long-poll cycle | ~290s hold → close → device resubscribes |
+
+---
+
+## Two Communication Patterns
+
+The protocol has two distinct flows:
+
+**Subscribe (server → device):**
+1. Device POSTs its current bucket state (revisions + timestamps)
+2. Server immediately sends `Transfer-Encoding: chunked` headers — device offloads connection to WiFi hardware and sleeps
+3. Server holds the connection; when state changes, sends a JSON chunk — device wakes via WoWLAN
+4. Server closes connection after sending; device resubscribes
+
+**PUT (device → server):**
+1. Device POSTs state changes (user dial adjustment, sensor readings)
+2. Server stores the data, increments revision
+3. Server returns `200 OK` with `{object_revision, object_timestamp, object_key}` — no `value` field
+
+---
+
+## NoLongerEvil Implementation
+
+The NLE self-hosted server implements this protocol on **port 8000** (the Device Protocol API). Thermostats connect here automatically after being configured to point at the server.
+
+Key implementation differences from Google's Nest cloud:
+
+- **3-tier pairing** using 7-character entry codes instead of OAuth/JWT
+- **SQLite persistence** instead of distributed cloud storage
+- **No credential provisioning** — the server accepts all credentials and identifies devices by serial from Basic Auth
+- **Single default structure** per device
+
+For the full list of differences, see [NLE Differences](/nest-protocol/nle-differences).
+
+---
+
+## Navigation
+
+<CardGroup cols={2}>
+  <Card title="Connection Architecture" href="/nest-protocol/connection-architecture">
+    Full device lifecycle diagram
+  </Card>
+  <Card title="Authentication" href="/nest-protocol/authentication">
+    HTTP Basic Auth and entry key pairing
+  </Card>
+  <Card title="Transport Mechanism" href="/nest-protocol/transport">
+    Subscribe, push, PUT in depth
+  </Card>
+  <Card title="Bucket System" href="/nest-protocol/bucket-system">
+    How device state is organized
+  </Card>
+</CardGroup>

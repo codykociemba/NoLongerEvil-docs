@@ -1,0 +1,154 @@
+---
+title: structure bucket
+description: 'Home-level settings — eco mode, away state, and device associations'
+---
+
+## Overview
+
+The `structure` bucket holds home-level settings that apply to all devices associated with a structure. It is the primary mechanism for eco (away) mode control.
+
+**Object key:** `structure.{structureId}`  
+**Direction:** Server → device only  
+**The device never sends this bucket in PUT requests.**
+
+---
+
+## Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `manual_eco_all` | boolean | Eco mode control — `true` activates eco immediately |
+| `manual_eco_timestamp` | integer | Unix timestamp in **seconds** of the eco change. Must be within 600s of device clock. |
+| `away` | boolean | Delayed eco trigger — device starts a timer and enters eco if uninterrupted |
+| `name` | string | Structure name |
+| `devices` | array | JSON array of device serial numbers |
+| `country_code` | string | ISO country code |
+| `postal_code` | string | Postal/ZIP code |
+| `time_zone` | object | Timezone information |
+| `house_type` | string | House type classification |
+| `num_thermostats` | string | Number of thermostats in the structure |
+| `dr_reminder_enabled` | boolean | Demand response reminders enabled |
+
+---
+
+## Eco Mode
+
+### Enter Eco Mode
+
+Set `manual_eco_all: true` with a current `manual_eco_timestamp`:
+
+```json
+{
+  "objects": [
+    {
+      "object_revision": 5,
+      "object_timestamp": 1707148800000,
+      "object_key": "structure.default",
+      "value": {
+        "manual_eco_all": true,
+        "manual_eco_timestamp": 1707148800
+      }
+    }
+  ]
+}
+```
+
+<Warning>
+  `manual_eco_timestamp` is in **Unix seconds** (not milliseconds). The device silently rejects the eco change if this value differs from the device's clock by more than 600 seconds. Keep your server clock NTP-synchronized.
+</Warning>
+
+Eco activates immediately when the device processes the update. The device switches to eco temperature bounds (`away_temperature_high`/`away_temperature_low` in the device bucket) and suspends schedule-based HVAC control.
+
+### Exit Eco Mode
+
+Exiting eco requires sending three things together:
+
+```json
+{
+  "objects": [
+    {
+      "object_revision": 6,
+      "object_timestamp": 1707148801000,
+      "object_key": "structure.default",
+      "value": {
+        "manual_eco_all": false,
+        "manual_eco_timestamp": 1707148801,
+        "away": false
+      }
+    },
+    {
+      "object_revision": 7,
+      "object_timestamp": 1707148801000,
+      "object_key": "device.09AA01AB12345678",
+      "value": {
+        "eco": {
+          "mode": "schedule",
+          "touched_by": 3,
+          "mode_update_timestamp": 1707148801
+        }
+      }
+    }
+  ]
+}
+```
+
+Why all three:
+- `manual_eco_all: false` — clears eco (but subject to timestamp validation)
+- `away: false` — alternate exit path (not validated by timestamp)
+- `eco.mode: "schedule"` in device bucket — **most reliable exit** — no timestamp validation, applied unconditionally
+
+After exit, the device performs a fresh schedule lookup — any previous manual temperature override is not restored.
+
+### `away` vs `manual_eco_all`
+
+| | `manual_eco_all` | `away` |
+|--|------------------|--------|
+| Activation | **Immediate** | Delayed (device internal timer) |
+| Timestamp validation | Yes (600s window) | `true` validated, `false` is not |
+| Use case | Direct eco toggle (app button) | Occupancy-based automation |
+| Schedule preconditioning | Blocked | Can end eco early |
+
+For a user-facing "Eco" button, use `manual_eco_all`. For home/away automation, use `away`.
+
+---
+
+## Delivering the Structure Bucket
+
+The device does **not** subscribe to the structure bucket by default. Your server must actively include it in subscribe responses.
+
+Once the device receives a structure bucket, it remembers the structure key and includes it in subsequent subscribe requests. From that point on, structure updates flow through the normal subscribe mechanism.
+
+Include the structure bucket on **every subscribe** for paired devices, alongside the user bucket:
+
+```json
+{
+  "objects": [
+    {
+      "object_revision": 1,
+      "object_timestamp": 1707148800000,
+      "object_key": "user.homeassistant",
+      "value": { "name": "homeassistant" }
+    },
+    {
+      "object_revision": 1,
+      "object_timestamp": 1707148800000,
+      "object_key": "structure.default",
+      "value": {
+        "name": "Home",
+        "devices": ["09AA01AB12345678"]
+      }
+    }
+  ]
+}
+```
+
+---
+
+## Choosing the Structure Key
+
+| Scenario | Structure key |
+|----------|---------------|
+| Device is claimed (has an owner) | Derive from user/owner identity (e.g., `structure.homeassistant`) |
+| Device is unclaimed | `structure.default` |
+
+The device processes the bucket identically regardless of the key name — what matters is that the bucket type is `structure`.

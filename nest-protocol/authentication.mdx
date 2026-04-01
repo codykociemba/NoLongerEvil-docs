@@ -1,0 +1,142 @@
+---
+title: Authentication
+description: 'HTTP Basic Auth, device identification, and entry key pairing'
+---
+
+## Overview
+
+The Nest protocol uses HTTP Basic Authentication on every request. The device embeds its serial number in the user ID field, allowing the server to identify any device from any request.
+
+<Info>
+  This page covers **device-level authentication** on the Device Protocol API (port 8000). For the Control API (port 8082), see [API Authentication](/api-reference/authentication).
+</Info>
+
+---
+
+## HTTP Basic Auth
+
+Every subscribe, PUT, and entry request includes:
+
+```
+Authorization: Basic <base64(userid:password)>
+```
+
+The **user ID** follows the format `d.{SERIAL}.{suffix}`:
+
+```
+Authorization: Basic <base64("d.09AA01AB12345678.BC7C9039:password")>
+                                 ^^^^^^^^^^^^^^^^^
+                                 serial number extracted here
+```
+
+To identify the device, decode the Base64 value and extract the second dot-delimited segment.
+
+### Identity header fallback
+
+Some non-production firmware configurations send `X-nl-client-id` or `X-nl-device-id` headers instead of Basic Auth. On production firmware, Basic Auth is **always** present. Handle headers as fallback only:
+
+| Header | Format | When sent |
+|--------|--------|-----------|
+| `Authorization: Basic` | `base64(d.{SERIAL}.{suffix}:pass)` | Always (production firmware) |
+| `X-nl-client-id` | `d.{SERIAL}.{suffix}` | Non-production only |
+| `X-nl-device-id` | `{SERIAL}` (bare serial) | Non-production only, entry requests |
+
+---
+
+## Credential Provisioning
+
+The server can provision new credentials to the device by including `X-nl-set-client-credentials` in any 200 response:
+
+```http
+X-nl-set-client-credentials: userid password
+```
+
+The device stores these and uses them for subsequent requests.
+
+<Warning>
+  **Do not provision credentials via 401 responses.** This can cause a credential loop on some firmware versions: the device receives new credentials, falls back to defaults before using them, gets another 401, receives credentials again — indefinitely.
+
+  If you provision credentials, do it only in **200 responses**.
+</Warning>
+
+### Recommended approach for NLE
+
+The NLE self-hosted server skips credential provisioning entirely:
+
+1. Accept all subscribe and PUT requests regardless of password
+2. Parse the device serial from the Basic Auth user ID
+3. Look up the device in the database by serial
+
+This avoids credential management complexity and the loop described above.
+
+---
+
+## Entry Key (Pairing Code)
+
+During device setup, users must enter a code displayed on the thermostat to claim it. The device fetches this code from the `passphrase_url` returned by `/nest/entry`.
+
+### Request
+
+```http
+GET /nest/passphrase HTTP/1.1
+Authorization: Basic <base64(d.SERIAL.SUFFIX:password)>
+```
+
+### Response
+
+```json
+{
+  "value": "A3XR7M2",
+  "expires": 1707234600000
+}
+```
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `value` | string | 7-character alphanumeric code |
+| `expires` | **number** | Milliseconds since epoch — **must be a JSON number, not a string** |
+
+<Warning>
+  If `expires` is a JSON string (e.g., `"1707234600000"` with quotes), the device silently rejects the response and never displays the entry code. Use a number literal.
+</Warning>
+
+The device displays the code in `XXX-XXXX` format (e.g., `A3X-R7M2`). The expiration must be at least 30 minutes in the future.
+
+The server returns the **same** unexpired key on repeated calls — generating a new key on each poll would invalidate the code before the user can enter it.
+
+---
+
+## Pairing Completion
+
+After the user enters the entry code, the server completes pairing by pushing two buckets to the device on its open subscribe connection:
+
+**1. User bucket** — triggers pairing on the device:
+
+```json
+{
+  "object_revision": 1,
+  "object_timestamp": 1707148800000,
+  "object_key": "user.homeassistant",
+  "value": { "name": "homeassistant" }
+}
+```
+
+The `name` field is what triggers pairing completion internally. Without it, the setup screen remains visible.
+
+**2. Structure bucket** — establishes the device-home association:
+
+```json
+{
+  "object_revision": 1,
+  "object_timestamp": 1707148800000,
+  "object_key": "structure.default",
+  "value": {
+    "name": "Home",
+    "devices": ["09AA01AB12345678"]
+  }
+}
+```
+
+<Note>
+  Include both the user bucket and structure bucket on **every subscribe reconnection** for paired devices — not just at registration time. If the server restarts or the device reboots, the device re-registers and needs these buckets to restore pairing state.
+</Note>

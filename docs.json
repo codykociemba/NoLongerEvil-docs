@@ -52,14 +52,44 @@
         "tab": "API Reference",
         "groups": [
           {
-            "group": "API Documentation",
+            "group": "Overview",
             "pages": [
               "api-reference/introduction",
               "api-reference/authentication"
             ]
           },
           {
-            "group": "User API (v1)",
+            "group": "Self-Hosted Control API",
+            "pages": [
+              "api-reference/control/control-overview",
+              "api-reference/control/command",
+              "api-reference/control/status",
+              "api-reference/control/devices",
+              "api-reference/control/schedule",
+              "api-reference/control/events",
+              "api-reference/control/register",
+              "api-reference/control/scan",
+              "api-reference/control/configure-nest",
+              "api-reference/control/notify",
+              "api-reference/control/health"
+            ]
+          },
+          {
+            "group": "Device Protocol API",
+            "pages": [
+              "api-reference/thermostat/entry",
+              "api-reference/thermostat/passphrase",
+              "api-reference/thermostat/transport-subscribe",
+              "api-reference/thermostat/transport-put",
+              "api-reference/thermostat/transport-device",
+              "api-reference/thermostat/ping",
+              "api-reference/thermostat/weather",
+              "api-reference/thermostat/upload",
+              "api-reference/thermostat/info"
+            ]
+          },
+          {
+            "group": "Hosted Service API",
             "pages": [
               "api-reference/v1/devices",
               "api-reference/v1/get-status",
@@ -71,6 +101,50 @@
               "api-reference/v1/set-lock",
               "api-reference/v1/schedule",
               "api-reference/v1/delete-device"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Nest Protocol",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "nest-protocol/overview",
+              "nest-protocol/connection-architecture",
+              "nest-protocol/authentication"
+            ]
+          },
+          {
+            "group": "Transport Mechanism",
+            "pages": [
+              "nest-protocol/transport"
+            ]
+          },
+          {
+            "group": "Bucket System",
+            "pages": [
+              "nest-protocol/bucket-system",
+              "nest-protocol/bucket-device",
+              "nest-protocol/bucket-shared",
+              "nest-protocol/bucket-structure",
+              "nest-protocol/bucket-schedule",
+              "nest-protocol/bucket-user"
+            ]
+          },
+          {
+            "group": "Device State",
+            "pages": [
+              "nest-protocol/device-state",
+              "nest-protocol/schedules"
+            ]
+          },
+          {
+            "group": "For Developers",
+            "pages": [
+              "nest-protocol/implementation-notes",
+              "nest-protocol/nle-differences"
             ]
           }
         ]

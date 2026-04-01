@@ -1,0 +1,100 @@
+---
+title: GET /nest/transport/device/{serial}
+description: 'List device objects (bucket metadata) for a given serial'
+---
+
+## Overview
+
+Returns the metadata (revision and timestamp) for all stored bucket objects for a device, without the actual values. Used by the device to discover which buckets the server has state for.
+
+<Info>
+  This endpoint is part of the **Device Protocol API** on port 8000. It is called directly by thermostat firmware.
+</Info>
+
+## Endpoint
+
+```
+GET http://your-server:8000/nest/transport/device/{serial}
+```
+
+Also handles legacy path formats:
+- `/nest/transport/v7/device/device.{serial}`
+- `/nest/transport/device/device.{serial}`
+
+## Path Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `serial` | string | Device serial number |
+
+## Response
+
+### Success (200 OK)
+
+```json
+{
+  "objects": [
+    {
+      "object_revision": 42,
+      "object_timestamp": 1707148800000,
+      "object_key": "device.09AA01AB12345678"
+    },
+    {
+      "object_revision": 15,
+      "object_timestamp": 1707148800000,
+      "object_key": "shared.09AA01AB12345678"
+    },
+    {
+      "object_revision": 3,
+      "object_timestamp": 1707148800000,
+      "object_key": "schedule.09AA01AB12345678"
+    },
+    {
+      "object_revision": 1,
+      "object_timestamp": 1707148800000,
+      "object_key": "user.homeassistant"
+    },
+    {
+      "object_revision": 1,
+      "object_timestamp": 1707148800000,
+      "object_key": "structure.abc123"
+    },
+    {
+      "object_revision": 1,
+      "object_timestamp": 1707148800000,
+      "object_key": "device_alert_dialog.09AA01AB12345678"
+    }
+  ]
+}
+```
+
+Values are **not included** — only `object_revision`, `object_timestamp`, and `object_key`.
+
+The device uses this response to build its initial subscribe request, including only the buckets it has seen before.
+
+### Response Headers
+
+```http
+X-nl-suspend-time-max: 300
+X-nl-service-timestamp: 1707148800000
+X-nl-defer-device-window: 15
+```
+
+Standard Nest protocol response headers are included.
+
+### Error (400 Bad Request)
+
+```json
+{"error": "Serial required"}
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="POST /nest/transport" href="/api-reference/thermostat/transport-subscribe">
+    Subscribe endpoint — uses the object list from this endpoint
+  </Card>
+  <Card title="Nest Protocol: Bucket System" href="/nest-protocol/bucket-system">
+    All 28 bucket types documented
+  </Card>
+</CardGroup>

@@ -1,0 +1,196 @@
+---
+title: Temperature Schedules
+description: 'How to push, read, and manage weekly temperature schedules'
+---
+
+## Overview
+
+The thermostat maintains a weekly temperature schedule that determines its target temperature throughout the day. The server can push schedules to the device and receive schedule updates when the user modifies them locally.
+
+Schedules are stored in the `schedule.{serial}` bucket. See [schedule bucket](/nest-protocol/bucket-schedule) for the sync protocol details.
+
+---
+
+## Complete Schedule Example
+
+A full week heating schedule:
+
+```json
+{
+  "ver": 2,
+  "name": "Weekday/Weekend",
+  "schedule_mode": "HEAT",
+  "days": {
+    "0": {
+      "0": {"type": "HEAT", "time": 21600,  "entry_type": "setpoint", "temp": 19.5},
+      "1": {"type": "HEAT", "time": 28800,  "entry_type": "setpoint", "temp": 21.0},
+      "2": {"type": "HEAT", "time": 57600,  "entry_type": "setpoint", "temp": 19.0},
+      "3": {"type": "HEAT", "time": 64800,  "entry_type": "setpoint", "temp": 21.0},
+      "4": {"type": "HEAT", "time": 79200,  "entry_type": "setpoint", "temp": 18.5}
+    },
+    "1": {
+      "0": {"type": "HEAT", "time": 21600,  "entry_type": "setpoint", "temp": 19.5},
+      "1": {"type": "HEAT", "time": 28800,  "entry_type": "setpoint", "temp": 21.0},
+      "2": {"type": "HEAT", "time": 64800,  "entry_type": "setpoint", "temp": 21.0},
+      "3": {"type": "HEAT", "time": 79200,  "entry_type": "setpoint", "temp": 18.5}
+    },
+    "2": {
+      "0": {"type": "HEAT", "time": 21600,  "entry_type": "setpoint", "temp": 19.5},
+      "1": {"type": "HEAT", "time": 28800,  "entry_type": "setpoint", "temp": 21.0},
+      "2": {"type": "HEAT", "time": 64800,  "entry_type": "setpoint", "temp": 21.0},
+      "3": {"type": "HEAT", "time": 79200,  "entry_type": "setpoint", "temp": 18.5}
+    },
+    "3": {
+      "0": {"type": "HEAT", "time": 21600,  "entry_type": "setpoint", "temp": 19.5},
+      "1": {"type": "HEAT", "time": 28800,  "entry_type": "setpoint", "temp": 21.0},
+      "2": {"type": "HEAT", "time": 64800,  "entry_type": "setpoint", "temp": 21.0},
+      "3": {"type": "HEAT", "time": 79200,  "entry_type": "setpoint", "temp": 18.5}
+    },
+    "4": {
+      "0": {"type": "HEAT", "time": 21600,  "entry_type": "setpoint", "temp": 19.5},
+      "1": {"type": "HEAT", "time": 28800,  "entry_type": "setpoint", "temp": 21.0},
+      "2": {"type": "HEAT", "time": 64800,  "entry_type": "setpoint", "temp": 21.0},
+      "3": {"type": "HEAT", "time": 79200,  "entry_type": "setpoint", "temp": 18.5}
+    },
+    "5": {
+      "0": {"type": "HEAT", "time": 25200,  "entry_type": "setpoint", "temp": 20.0},
+      "1": {"type": "HEAT", "time": 36000,  "entry_type": "setpoint", "temp": 21.5},
+      "2": {"type": "HEAT", "time": 79200,  "entry_type": "setpoint", "temp": 18.5}
+    },
+    "6": {
+      "0": {"type": "HEAT", "time": 25200,  "entry_type": "setpoint", "temp": 20.0},
+      "1": {"type": "HEAT", "time": 36000,  "entry_type": "setpoint", "temp": 21.5},
+      "2": {"type": "HEAT", "time": 79200,  "entry_type": "setpoint", "temp": 18.5}
+    }
+  }
+}
+```
+
+---
+
+## Day/Time Encoding
+
+Days: `"0"` = Monday ... `"6"` = Sunday  
+Time: seconds from midnight
+
+| Time value | Clock time |
+|------------|-----------|
+| `0` | 12:00 AM |
+| `21600` | 6:00 AM |
+| `25200` | 7:00 AM |
+| `28800` | 8:00 AM |
+| `57600` | 4:00 PM |
+| `64800` | 6:00 PM |
+| `79200` | 10:00 PM |
+
+---
+
+## RANGE Mode Example
+
+For a heat-cool system, use `temp-min` and `temp-max` instead of `temp`:
+
+```json
+{
+  "ver": 2,
+  "name": "Range Schedule",
+  "schedule_mode": "RANGE",
+  "days": {
+    "0": {
+      "0": {
+        "type": "RANGE",
+        "time": 25200,
+        "entry_type": "setpoint",
+        "temp-min": 19.0,
+        "temp-max": 24.0
+      }
+    },
+    "1": {},
+    "2": {},
+    "3": {},
+    "4": {},
+    "5": {},
+    "6": {}
+  }
+}
+```
+
+The device heats when temperature drops below `temp-min` and cools when it rises above `temp-max`.
+
+---
+
+## Pushing a Schedule
+
+```json
+{
+  "objects": [
+    {
+      "object_revision": 100,
+      "object_timestamp": 1707148800000,
+      "object_key": "schedule.09AA01AB12345678",
+      "value": { ...complete schedule... }
+    }
+  ]
+}
+```
+
+Key rules:
+- Push the **complete** schedule (all 7 days, all setpoints)
+- Never push partial updates or individual setpoints
+- Use `entry_type: "setpoint"` for all setpoints you define
+- Wait ≥15 seconds between schedule pushes (debounce window)
+- All temperatures in Celsius
+
+---
+
+## Switching Schedule Mode
+
+The active schedule mode is controlled by `schedule_mode` in the **shared** bucket — not the schedule itself:
+
+```json
+{
+  "objects": [
+    {
+      "object_revision": 459,
+      "object_timestamp": 1707148800000,
+      "object_key": "shared.09AA01AB12345678",
+      "value": {
+        "schedule_mode": "COOL"
+      }
+    }
+  ]
+}
+```
+
+The `schedule_mode` inside the schedule JSON and the `schedule_mode` in the shared bucket must match. If they differ, the device ignores the schedule.
+
+---
+
+## Reading the Device's Schedule
+
+The device sends schedule updates via PUT requests. Schedule data is inline in the PUT (not nested in `value`):
+
+```json
+{
+  "session": "sess_xyz789",
+  "schedule.09AA01AB12345678": {
+    "object_key": "schedule.09AA01AB12345678",
+    "base_object_revision": 99,
+    "ver": 2,
+    "name": "Default",
+    "schedule_mode": "HEAT",
+    "days": { ... }
+  }
+}
+```
+
+Store the complete schedule. When the device reconnects, compare timestamps and return the schedule bucket if the server's version is newer.
+
+---
+
+## Edge Cases
+
+**Continuation setpoints:** Setpoints with `entry_type: "continuation"` are filler entries auto-generated by the device. You only need `"setpoint"` entries when pushing. When reading from the device, store continuation entries as-is.
+
+**Learning mode:** When learning is enabled, the device may modify your pushed schedule over time based on user dial turns. Disable learning (`learning_mode: false` in device bucket) before pushing if you need the schedule to stay exactly as pushed.
+
+**Days with no setpoints:** Include every day key in the `days` object, even days with no setpoints (empty object `{}`). This signals the device to use the last setpoint from the previous day as a continuation.

@@ -1,0 +1,148 @@
+---
+title: GET /api/schedule
+description: 'Get the current weekly schedule for a device'
+---
+
+## Overview
+
+Returns the device's stored weekly temperature schedule.
+
+## Endpoint
+
+```
+GET http://your-server:8082/api/schedule?serial={serial}
+```
+
+## Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `serial` | string | Yes | Device serial number |
+
+## Response
+
+### Device Has a Schedule (200 OK)
+
+```json
+{
+  "serial": "02AB01AC012345678",
+  "schedule": {
+    "ver": 2,
+    "name": "",
+    "schedule_mode": "HEAT",
+    "days": {
+      "0": [
+        {"type": "HEAT", "time": 21600, "temp": 18.0, "entry_type": "setpoint"},
+        {"type": "HEAT", "time": 28800, "temp": 21.0, "entry_type": "setpoint"},
+        {"type": "HEAT", "time": 64800, "temp": 19.5, "entry_type": "setpoint"}
+      ],
+      "1": [
+        {"type": "HEAT", "time": 25200, "temp": 20.0, "entry_type": "setpoint"}
+      ],
+      "5": [
+        {"type": "HEAT", "time": 28800, "temp": 21.5, "entry_type": "setpoint"}
+      ],
+      "6": [
+        {"type": "HEAT", "time": 28800, "temp": 21.5, "entry_type": "setpoint"}
+      ]
+    }
+  },
+  "object_revision": 12,
+  "object_timestamp": 1743508800000
+}
+```
+
+### No Schedule Yet (200 OK)
+
+```json
+{
+  "serial": "02AB01AC012345678",
+  "schedule": null
+}
+```
+
+### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `serial` | string | Device serial |
+| `schedule` | object \| null | Schedule object, or null if no schedule stored |
+| `schedule.ver` | number | Schedule version (always `2`) |
+| `schedule.schedule_mode` | string | `"HEAT"`, `"COOL"`, or `"RANGE"` |
+| `schedule.days` | object | Day-keyed setpoints (see below) |
+| `object_revision` | number | Bucket revision |
+| `object_timestamp` | number | Last update timestamp (ms) |
+
+### Schedule Day Keys
+
+Day keys are strings `"0"` through `"6"`, where **Monday = `"0"` and Sunday = `"6"`**:
+
+| Key | Day |
+|-----|-----|
+| `"0"` | Monday |
+| `"1"` | Tuesday |
+| `"2"` | Wednesday |
+| `"3"` | Thursday |
+| `"4"` | Friday |
+| `"5"` | Saturday |
+| `"6"` | Sunday |
+
+Days not present in the `days` object are considered to have no scheduled changes.
+
+### Setpoint Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | string | `"HEAT"`, `"COOL"`, or `"RANGE"` |
+| `time` | number | Seconds from midnight (0–86399). E.g., `21600` = 6:00 AM |
+| `temp` | number | Target temperature in °C (for HEAT/COOL modes) |
+| `temp-min` | number | Minimum temperature in °C (RANGE mode only) |
+| `temp-max` | number | Maximum temperature in °C (RANGE mode only) |
+| `entry_type` | string | `"setpoint"` (informational) |
+
+<Note>
+  All temperatures in the schedule are in **Celsius**, regardless of the thermostat's display scale.
+</Note>
+
+### Error (400 Bad Request)
+
+```json
+{"error": "Serial parameter required"}
+```
+
+## Example
+
+<CodeGroup>
+
+```bash cURL
+curl "http://your-server:8082/api/schedule?serial=02AB01AC012345678"
+```
+
+```python Python
+import requests
+
+resp = requests.get('http://your-server:8082/api/schedule',
+                    params={'serial': '02AB01AC012345678'})
+data = resp.json()
+
+if data['schedule']:
+    for day_key, entries in data['schedule']['days'].items():
+        days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+        print(f"{days[int(day_key)]}:")
+        for e in entries:
+            h, m = divmod(e['time'] // 60, 60)
+            print(f"  {h:02d}:{m:02d} → {e.get('temp', f\"{e.get('temp-min')}-{e.get('temp-max')}\")}°C")
+```
+
+</CodeGroup>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="POST /command (set_schedule)" href="/api-reference/control/command">
+    Push a new schedule to the device
+  </Card>
+  <Card title="Nest Protocol Schedules" href="/nest-protocol/schedules">
+    Deep dive on schedule format and behavior
+  </Card>
+</CardGroup>

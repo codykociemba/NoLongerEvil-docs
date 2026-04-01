@@ -1,0 +1,143 @@
+---
+title: shared bucket
+description: 'Active temperature setpoint, HVAC mode, and current conditions'
+---
+
+## Overview
+
+The `shared` bucket is the primary bucket for thermostat control. It holds the active temperature setpoint, HVAC mode, and current conditions. This is the bucket you read and write most often.
+
+**Object key:** `shared.{serial}`  
+**Direction:** Bidirectional  
+**Revision type:** `if_object_revision` (conditional write — unique among all buckets)
+
+---
+
+## Conditional Writes
+
+The `shared` bucket is the **only** bucket that uses conditional writes. When the device sends a PUT with `if_object_revision`, it expects the server to validate that this revision matches the current stored revision before accepting the write.
+
+This prevents the device from overwriting a temperature change the server pushed while the device was preparing its own PUT. All other buckets use `base_object_revision` (unconditional).
+
+When a conditional write fails, return `200 OK` with the current `{object_revision, object_timestamp, object_key}` so the device can reconcile. **Never include a `value` field in the response.**
+
+---
+
+## Fields
+
+| Field | Type | Server | Description |
+|-------|------|--------|-------------|
+| `target_temperature` | float | Read/write | Target temperature in °C (single-setpoint modes) |
+| `target_temperature_high` | float | Read/write | Upper bound in range mode (°C) |
+| `target_temperature_low` | float | Read/write | Lower bound in range mode (°C) |
+| `target_temperature_type` | string | Read/write | HVAC mode: `heat`, `cool`, `range`, `emergency`, or `off` |
+| `target_change_pending` | boolean | Read/write | Display wake flag — see below |
+| `schedule_mode` | string | Read/write | Active schedule mode: `HEAT`, `COOL`, or `RANGE` |
+| `touched_by` | object | Read/write | Last temperature change source — see below |
+| `name` | string | Read/write | Device display name |
+| `current_temperature` | float | **Read-only** | Current indoor temperature (°C) |
+| `auto_away` | integer | **Read-only** | Occupancy: `0` = home, `1` = away |
+| `can_heat` | boolean | **Read-only** | Heating capability |
+| `can_cool` | boolean | **Read-only** | Cooling capability |
+| `hvac_heater_state` | boolean | **Read-only** | Primary heater running |
+| `hvac_heat_x2_state` | boolean | **Read-only** | Stage 2 heat running |
+| `hvac_heat_x3_state` | boolean | **Read-only** | Stage 3 heat running |
+| `hvac_aux_heater_state` | boolean | **Read-only** | Auxiliary heater running |
+| `hvac_alt_heat_state` | boolean | **Read-only** | Alternate heat source running |
+| `hvac_emer_heat_state` | boolean | **Read-only** | Emergency heat running |
+| `hvac_ac_state` | boolean | **Read-only** | Air conditioning running |
+| `hvac_cool_x2_state` | boolean | **Read-only** | Stage 2 cooling running |
+| `hvac_cool_x3_state` | boolean | **Read-only** | Stage 3 cooling running |
+| `hvac_fan_state` | boolean | **Read-only** | Fan running |
+
+---
+
+## target_change_pending — Display Wake
+
+When you push a temperature change to a sleeping device, the device wakes and applies the new setpoint — but the **physical display stays off** unless you also set `target_change_pending: true`.
+
+**Set `target_change_pending: true` when changing:**
+- `target_temperature`
+- `target_temperature_high`
+- `target_temperature_low`
+
+**Don't set it when changing:**
+- `target_temperature_type` (mode changes have separate display handling)
+- `schedule_mode`
+- Any field in the `device` or `structure` buckets
+
+**Acknowledgment flow:**
+1. Server pushes `target_temperature` + `target_change_pending: true`
+2. Device wakes, applies temperature, lights the display
+3. Device sends PUT with `target_change_pending: false`
+4. Server accepts `false` and does **not** push `true` again
+
+If you keep pushing `target_change_pending: true` after the device cleared it, the display keeps cycling — never accept the device's `false` and you get an update loop.
+
+---
+
+## touched_by — Change Source Tracking
+
+The `touched_by` object tells the device what caused the last temperature change. The device uses it to show "Holding until..." after a manual dial turn.
+
+```json
+{
+  "touched_by": {
+    "touched_by": 3,
+    "touched_at": 1707148800,
+    "touched_tzo": -18000,
+    "touched_user_id": ""
+  }
+}
+```
+
+| `touched_by` value | When to use |
+|---------------------|-------------|
+| `1` | Server applying a schedule transition |
+| `2` | Device user turned the dial |
+| `3` | External app or API pushed the temperature |
+
+Set `touched_at` to the current Unix timestamp in **seconds** (not ms). Set `touched_tzo` to the device's UTC offset in seconds.
+
+<Note>
+  The device does **not** include `touched_by` in its own temperature PUTs. Your server is responsible for setting this field when pushing temperature changes.
+</Note>
+
+---
+
+## target_temperature vs Schedule Setpoints
+
+`target_temperature` in the shared bucket can be overwritten by:
+- Schedule transitions (device evaluates schedule locally on its own timer)
+- Manual dial turns
+- Cloud pushes from your server
+
+**Critical:** If your server pushes a stale `target_temperature` value that differs from what the device currently has, the device treats it as a new manual override — canceling the current schedule-derived setpoint.
+
+**Best practice:** Only push `target_temperature` when you have a genuine user-initiated change. Do not echo back the last known value on every subscribe response.
+
+---
+
+## Example: Push Temperature Change
+
+```json
+{
+  "objects": [
+    {
+      "object_revision": 458,
+      "object_timestamp": 1707149000000,
+      "object_key": "shared.09AA01AB12345678",
+      "value": {
+        "target_temperature": 21.5,
+        "target_change_pending": true,
+        "touched_by": {
+          "touched_by": 3,
+          "touched_at": 1707149000,
+          "touched_tzo": -18000,
+          "touched_user_id": ""
+        }
+      }
+    }
+  ]
+}
+```

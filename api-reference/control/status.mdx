@@ -1,0 +1,173 @@
+---
+title: GET /status
+description: 'Get the full state of a specific device'
+---
+
+## Overview
+
+Returns the complete current state for a single device, including temperatures, HVAC state, capabilities, and availability.
+
+## Endpoint
+
+```
+GET http://your-server:8082/status?serial={serial}
+```
+
+## Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `serial` | string | Yes | Device serial number |
+
+## Response
+
+### Success (200 OK)
+
+```json
+{
+  "serial": "02AB01AC012345678",
+  "api_key": "02AB01AC012345678",
+  "is_available": true,
+  "last_seen": "2026-04-01T12:00:00",
+  "name": "Living Room",
+  "current_temperature": 20.5,
+  "target_temperature": 21.0,
+  "target_temperature_high": null,
+  "target_temperature_low": null,
+  "humidity": 45,
+  "target_humidity": null,
+  "target_humidity_enabled": false,
+  "mode": "heat",
+  "hvac": {
+    "heater": true,
+    "heat_x2": false,
+    "heat_x3": false,
+    "ac": false,
+    "cool_x2": false,
+    "cool_x3": false,
+    "fan": false,
+    "aux_heat": false,
+    "emer_heat": false,
+    "alt_heat": false,
+    "humidifier": false,
+    "dehumidifier": false,
+    "auto_dehum": false,
+    "fan_cooling": false
+  },
+  "fan_timer_active": false,
+  "fan_timer_timeout": 0,
+  "eco_temperatures": {
+    "high": 26.0,
+    "low": 15.5
+  },
+  "is_online": true,
+  "has_leaf": false,
+  "software_version": "5.9.3-5",
+  "temperature_scale": "C",
+  "capabilities": {
+    "can_heat": true,
+    "can_cool": false,
+    "has_fan": false,
+    "has_emer_heat": false,
+    "has_humidifier": false,
+    "has_dehumidifier": false
+  },
+  "eco_mode": "schedule",
+  "time_to_target": 15,
+  "time_to_target_training_status": "trained",
+  "safety_state": null,
+  "safety_temp_activating_hvac": null,
+  "learning_mode": true,
+  "preconditioning_enabled": false,
+  "backplate_temperature": 20.1,
+  "structure_id": "abc123",
+  "away": false,
+  "schedule_mode": "HEAT"
+}
+```
+
+### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `serial` | string | Device serial number |
+| `api_key` | string | Device API key (same as serial for self-hosted) |
+| `is_available` | boolean | Whether the device is currently reachable |
+| `last_seen` | string \| null | ISO 8601 timestamp of last device activity |
+| `name` | string | Device display name |
+| `current_temperature` | number \| null | Ambient temperature in °C |
+| `target_temperature` | number \| null | Target setpoint in °C (single-mode) |
+| `target_temperature_high` | number \| null | Target high in °C (heat-cool range mode) |
+| `target_temperature_low` | number \| null | Target low in °C (heat-cool range mode) |
+| `humidity` | number \| null | Current relative humidity (%) |
+| `target_humidity` | number \| null | Target humidity (%) |
+| `target_humidity_enabled` | boolean | Whether humidity control is active |
+| `mode` | string \| null | Active HVAC mode (`heat`, `cool`, `range`, `off`, `emergency`) |
+| `hvac` | object | Current HVAC equipment runtime states |
+| `hvac.heater` | boolean | Heater running |
+| `hvac.ac` | boolean | AC running |
+| `hvac.fan` | boolean | Fan running |
+| `hvac.aux_heat` | boolean | Auxiliary heat running |
+| `fan_timer_active` | boolean | Whether fan timer is active |
+| `fan_timer_timeout` | number | Fan timer expiry (Unix seconds) |
+| `eco_temperatures` | object | Eco mode temperature bounds |
+| `eco_temperatures.high` | number \| null | Eco upper bound in °C |
+| `eco_temperatures.low` | number \| null | Eco lower bound in °C |
+| `is_online` | boolean | Whether the device self-reports as online |
+| `has_leaf` | boolean | Nest Leaf indicator |
+| `software_version` | string \| null | Firmware version string |
+| `temperature_scale` | string | `"C"` or `"F"` (display preference) |
+| `capabilities` | object | Equipment capabilities |
+| `capabilities.can_heat` | boolean | Device has heating wired |
+| `capabilities.can_cool` | boolean | Device has cooling wired |
+| `capabilities.has_fan` | boolean | Device has a fan |
+| `capabilities.has_emer_heat` | boolean | Device has emergency heat |
+| `eco_mode` | string \| null | Eco mode state (`"schedule"`, `"manual-eco"`, `"auto-eco"`) |
+| `time_to_target` | number \| null | Minutes until target temperature reached |
+| `learning_mode` | boolean \| null | Whether learning is enabled |
+| `backplate_temperature` | number \| null | Backplate sensor temperature in °C |
+| `structure_id` | string \| null | Structure ID this device belongs to |
+| `away` | boolean | Away mode flag |
+| `schedule_mode` | string \| null | Active schedule mode (`"HEAT"`, `"COOL"`, `"RANGE"`) |
+
+### Error (400 Bad Request)
+
+```json
+{"error": "Serial parameter required"}
+```
+
+### Error (404 Not Found)
+
+```json
+{"error": "Device not found"}
+```
+
+## Example
+
+<CodeGroup>
+
+```bash cURL
+curl "http://your-server:8082/status?serial=02AB01AC012345678"
+```
+
+```python Python
+import requests
+resp = requests.get('http://your-server:8082/status', params={'serial': '02AB01AC012345678'})
+status = resp.json()
+print(f"Temperature: {status['current_temperature']}°C")
+print(f"Mode: {status['mode']}")
+print(f"Heating: {status['hvac']['heater']}")
+```
+
+</CodeGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="POST /command" href="/api-reference/control/command">
+    Control the device
+  </Card>
+  <Card title="GET /api/events" href="/api-reference/control/events">
+    Subscribe to live state changes
+  </Card>
+</CardGroup>

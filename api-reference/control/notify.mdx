@@ -1,0 +1,85 @@
+---
+title: POST /notify-device
+description: 'Force-push current state to all device subscribers'
+---
+
+## Overview
+
+Sends all currently stored state objects for a device to any active subscribe connections. This is useful for testing, debugging, or forcing an immediate state refresh on the thermostat without waiting for the normal subscribe cycle.
+
+## Endpoint
+
+```
+POST http://your-server:8082/notify-device
+```
+
+## Request
+
+```json
+{
+  "serial": "02AB01AC012345678"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `serial` | string | Yes | Device serial number |
+
+## Response
+
+### Success (200 OK)
+
+```json
+{
+  "success": true,
+  "subscribers_notified": 1
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | boolean | Always `true` on success |
+| `subscribers_notified` | number | Number of active subscribe connections that received the push |
+
+A `subscribers_notified` of `0` means the device has no active subscribe connections at this moment (it may be sleeping or disconnected).
+
+### Error (400 Bad Request)
+
+```json
+{"error": "Serial required"}
+```
+
+### Error (404 Not Found)
+
+```json
+{"error": "Device not found"}
+```
+
+## When to Use
+
+- **Debugging**: Force an immediate state push to see if the device picks up server-side changes
+- **Testing**: Trigger a state delivery without modifying any values
+- **Recovery**: If a device seems stuck, this may help it re-sync
+
+<Note>
+  Normal thermostat control (via `/command`) automatically notifies subscribers. You only need to call this endpoint for explicit manual pushes.
+</Note>
+
+## Example
+
+```bash
+curl -X POST http://your-server:8082/notify-device \
+  -H "Content-Type: application/json" \
+  -d '{"serial": "02AB01AC012345678"}'
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="POST /command" href="/api-reference/control/command">
+    Send a command (automatically notifies)
+  </Card>
+  <Card title="GET /api/events" href="/api-reference/control/events">
+    Subscribe to state change events
+  </Card>
+</CardGroup>

@@ -1,0 +1,107 @@
+---
+title: GET /api/devices
+description: 'List all registered devices and their current state'
+---
+
+## Overview
+
+Returns a list of all devices known to the server, with full status for each.
+
+When `require_device_pairing` is enabled (see environment config), only devices that have completed the pairing/registration flow are returned. Otherwise, all devices the server has seen are returned.
+
+## Endpoint
+
+```
+GET http://your-server:8082/api/devices
+```
+
+## Response
+
+### Success (200 OK)
+
+```json
+{
+  "devices": [
+    {
+      "serial": "02AB01AC012345678",
+      "api_key": "02AB01AC012345678",
+      "is_available": true,
+      "last_seen": "2026-04-01T12:00:00",
+      "name": "Living Room",
+      "current_temperature": 20.5,
+      "target_temperature": 21.0,
+      "mode": "heat",
+      "hvac": {
+        "heater": true,
+        "ac": false,
+        "fan": false
+      },
+      "capabilities": {
+        "can_heat": true,
+        "can_cool": false,
+        "has_fan": false,
+        "has_emer_heat": false,
+        "has_humidifier": false,
+        "has_dehumidifier": false
+      },
+      "eco_mode": "schedule",
+      "subscription_count": 1,
+      "away": false,
+      "schedule_mode": "HEAT"
+    }
+  ],
+  "total": 1
+}
+```
+
+### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `devices` | array | Array of device status objects |
+| `total` | number | Total device count |
+| `devices[].subscription_count` | number | Number of active subscribe connections |
+
+Each device object contains the same fields as [`GET /status`](/api-reference/control/status).
+
+## Examples
+
+<CodeGroup>
+
+```bash cURL
+curl http://your-server:8082/api/devices
+```
+
+```python Python
+import requests
+
+resp = requests.get('http://your-server:8082/api/devices')
+data = resp.json()
+
+for device in data['devices']:
+    available = "online" if device['is_available'] else "offline"
+    print(f"{device['serial']} ({device.get('name', 'unnamed')}) — {available}")
+    print(f"  Temp: {device['current_temperature']}°C → {device['target_temperature']}°C")
+```
+
+```javascript JavaScript
+const resp = await fetch('http://your-server:8082/api/devices');
+const { devices } = await resp.json();
+
+devices.forEach(d => {
+  console.log(`${d.serial}: ${d.current_temperature}°C, mode=${d.mode}`);
+});
+```
+
+</CodeGroup>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="GET /status" href="/api-reference/control/status">
+    Full status for a single device
+  </Card>
+  <Card title="POST /api/register" href="/api-reference/control/register">
+    Register a new device
+  </Card>
+</CardGroup>

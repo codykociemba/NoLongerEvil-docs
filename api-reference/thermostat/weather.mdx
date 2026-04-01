@@ -1,0 +1,60 @@
+---
+title: GET /nest/weather/v1
+description: 'Weather proxy endpoint for thermostat weather data'
+---
+
+## Overview
+
+Proxies weather data requests to `weather.nest.com` with server-side caching. Thermostats call this endpoint to get local weather conditions for display and eco mode decisions.
+
+<Info>
+  This endpoint is part of the **Device Protocol API** on port 8000. It is called by thermostat firmware — not by you.
+</Info>
+
+## Endpoint
+
+```
+GET http://your-server:8000/nest/weather/v1
+GET http://your-server:8000/nest/weather/{path}
+```
+
+The second form handles any path under `/nest/weather/` for compatibility with firmware variants.
+
+## Query Parameters
+
+The endpoint passes all query parameters through to the upstream Nest weather API.
+
+| Parameter | Description |
+|-----------|-------------|
+| `postal_code` | Postal or ZIP code |
+| `country` | Country code (e.g., `US`) |
+| Others | Passed through to Nest API |
+
+## Response
+
+Returns the upstream weather JSON from `weather.nest.com`, cached on the server for `WEATHER_CACHE_TTL_MS` milliseconds (default: 600,000 ms = 10 minutes).
+
+### Success (200 OK)
+
+Returns weather data as proxied from Nest's weather API (format defined by Nest).
+
+### Error (502 Bad Gateway)
+
+```json
+{"error": "Weather service unavailable"}
+```
+
+Returned if the upstream weather API is unreachable or the request fails.
+
+## Caching
+
+Weather responses are cached to avoid hammering the upstream API when multiple devices request weather simultaneously. The cache TTL is configurable via the `WEATHER_CACHE_TTL_MS` environment variable.
+
+## Note on Weather Data
+
+The thermostat uses weather data for:
+- Outdoor temperature display
+- Eco mode boundary decisions
+- Sunrise/sunset calculations for display brightness
+
+If your deployment has no internet access, weather data will be unavailable and these features will be non-functional.

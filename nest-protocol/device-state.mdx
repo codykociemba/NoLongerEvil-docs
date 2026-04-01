@@ -1,0 +1,151 @@
+---
+title: Device State Model
+description: 'HVAC modes, temperature fields, read-only sensors, and equipment capabilities'
+---
+
+## Overview
+
+The thermostat's state isn't a single "mode." It's the combination of four independent dimensions, each controlled through different bucket fields.
+
+| Dimension | Controls | Bucket | Key field | Server-writable? |
+|-----------|----------|--------|-----------|------------------|
+| HVAC mode | Heating, cooling, or both | `shared` | `target_temperature_type` | Yes |
+| Temperature setpoint | Target temperature | `shared` | `target_temperature` (and variants) | Yes |
+| Eco mode | Energy-saving state | `structure` | `manual_eco_all` | Yes |
+| HVAC operation | What hardware is running | `shared` | `hvac_*_state` fields | **No** (read-only) |
+
+These dimensions are independent — changing one doesn't reset the others.
+
+---
+
+## HVAC Modes
+
+Set the HVAC mode by pushing `target_temperature_type` in the shared bucket:
+
+| Value | Behavior | Temperature fields | Wiring required |
+|-------|----------|-------------------|----------------|
+| `"heat"` | Heating only | `target_temperature` | `can_heat: true` |
+| `"cool"` | Cooling only | `target_temperature` | `can_cool: true` |
+| `"range"` | Auto heat+cool | `target_temperature_low`, `target_temperature_high` | `can_heat` and `can_cool` |
+| `"off"` | All HVAC disabled | None | — |
+| `"emergency"` | Emergency/auxiliary heat | `target_temperature` | `has_emer_heat: true` (device bucket) |
+
+Values are case-insensitive. The device sends lowercase in PUT requests.
+
+**Always validate against device capabilities before pushing a mode.** If you push an unsupported mode, the device silently falls back to a mode its wiring supports.
+
+```
+can_heat → check shared bucket
+can_cool → check shared bucket
+has_emer_heat → check device bucket
+```
+
+---
+
+## Temperature Fields
+
+All temperatures are **Celsius floats**. The device converts for display based on `temperature_scale` in the device bucket.
+
+| Active mode | Set these fields |
+|-------------|-----------------|
+| `heat` | `target_temperature` |
+| `cool` | `target_temperature` |
+| `emergency` | `target_temperature` |
+| `range` | `target_temperature_low` AND `target_temperature_high` |
+| `off` | None |
+
+Valid range: 4.5°C – 32°C (40°F – 90°F). Minimum meaningful increment: ~0.01°C.
+
+In range mode, the device heats when the current temperature drops below `target_temperature_low` and cools when it rises above `target_temperature_high`.
+
+---
+
+## Equipment Capabilities
+
+Check these before offering controls in a UI:
+
+| Field | Bucket | Description |
+|-------|--------|-------------|
+| `can_heat` | shared | Heating wiring detected |
+| `can_cool` | shared | Cooling wiring detected |
+| `has_emer_heat` | device | Emergency/auxiliary heat wiring |
+| `has_fan` | device | Fan control wiring |
+| `has_humidifier` | device | Humidifier wiring |
+| `has_dehumidifier` | device | Dehumidifier wiring |
+| `has_hot_water_control` | device | Hot water system (UK/EU) |
+
+These are reported by the device via PUT and are read-only on the server side.
+
+---
+
+## HVAC Operation State
+
+The device reports what equipment is currently running through boolean fields in the shared bucket:
+
+| Currently... | Check these fields |
+|-------------|-------------------|
+| Heating | `hvac_heater_state`, `hvac_heat_x2_state`, `hvac_heat_x3_state` |
+| Cooling | `hvac_ac_state`, `hvac_cool_x2_state`, `hvac_cool_x3_state` |
+| Emergency heating | `hvac_emer_heat_state` |
+| Auxiliary heat | `hvac_aux_heater_state`, `hvac_alt_heat_state` |
+| Fan running | `hvac_fan_state` |
+
+Multiple fields can be `true` simultaneously (e.g., stage 1 and stage 2 heating).
+
+---
+
+## Read-Only Sensor Fields
+
+| Field | Bucket | Type | Description |
+|-------|--------|------|-------------|
+| `current_temperature` | shared | float | Indoor temperature (°C) |
+| `current_humidity` | device | integer | Indoor relative humidity (%) |
+| `backplate_temperature` | device | float | Backplate sensor temperature (°C) |
+| `battery_level` | device | float | Battery charge level |
+| `time_to_target` | device | integer | Estimated seconds until target temperature |
+| `time_to_target_training` | device | string | `"ready"`, `"training"`, or `"not_ready"` |
+| `auto_away` | shared | integer | Occupancy: `0` = home, `1` = away |
+
+---
+
+## Eco Mode State
+
+The device reports its eco state via the `eco_mode` field in the device bucket (a JSON string):
+
+```json
+{"mode":"manual-eco","touched_by":3,"mode_update_timestamp":1738800000,"touched_user_id":"userId"}
+```
+
+| `mode` value | Meaning |
+|-------------|---------|
+| `"schedule"` | Not in eco mode — following schedule normally |
+| `"manual-eco"` | Server-initiated eco (via `manual_eco_all` in structure bucket) |
+| `"auto-eco"` | Device-initiated eco (occupancy sensor or `away` timer) |
+
+---
+
+## Emergency Heat
+
+Emergency heat bypasses the heat pump compressor and runs auxiliary heat directly. It's expensive and intended for equipment failure or extreme cold.
+
+When emergency heat activates, the device automatically:
+- Saves and disables learning mode
+- Saves and disables auto-away  
+- Blocks preconditioning entirely
+- Restores all saved settings when emergency heat is turned off
+
+Do not leave a device in emergency heat long-term.
+
+---
+
+## State Interaction Matrix
+
+| Server action | HVAC mode | Temperature source | Eco | HVAC runs? |
+|--------------|-----------|-------------------|-----|------------|
+| Set mode to `"heat"` | → Heat | Schedule or manual | Unchanged | If below setpoint |
+| Set mode to `"off"` | → Off | — | Unchanged | No |
+| Set `manual_eco_all: true` | Unchanged | → Eco temperatures | → Manual-eco | Only outside eco band |
+| Set `manual_eco_all: false` | Unchanged | → Schedule setpoint | → Schedule | Recalculated |
+| Push new schedule | Unchanged | Updated at transitions | Unchanged | Recalculated |
+| Safety threshold crossed | Overridden | Overridden | Overridden | Forced on |
+| Set emergency mode | → Emergency | Manual setpoint | Unchanged | Emergency heat |

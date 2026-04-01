@@ -1,0 +1,139 @@
+---
+title: POST /api/configure-nest
+description: 'Point a discovered Nest device at this server'
+---
+
+## Overview
+
+Updates a Nest thermostat's `cloudregisterurl` setting to point at this NLE server. After this call, the device will connect to this server on its next boot or reconnect.
+
+This is the second step in the device setup flow, after using `/api/scan-network` to discover devices.
+
+## Endpoint
+
+```
+POST http://your-server:8082/api/configure-nest
+```
+
+## Request
+
+### First Attempt (no API key)
+
+```json
+{
+  "ip": "192.168.1.55"
+}
+```
+
+### Retry With API Key (if first attempt returns 401)
+
+```json
+{
+  "ip": "192.168.1.55",
+  "api_key": "02AB01AC012345678"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `ip` | string | Yes | IP address of the Nest device to configure |
+| `api_key` | string | No | Device serial/API key, required if device demands auth |
+
+## Response
+
+### Success (200 OK)
+
+```json
+{
+  "success": true,
+  "device_name": "Nest Thermostat"
+}
+```
+
+### Authentication Required (401)
+
+```json
+{
+  "success": false,
+  "auth_required": true
+}
+```
+
+Retry the request with `"api_key": "{device_serial}"` to authenticate.
+
+### Error (4xx/5xx)
+
+```json
+{
+  "success": false,
+  "error": "Connection failed: ..."
+}
+```
+
+| Status | Meaning |
+|--------|---------|
+| `401` | Device requires authentication — retry with `api_key` |
+| `502` | Could not connect to the device |
+
+## What It Sets
+
+The server sends a POST to the device's local API (`http://{ip}:8080/cgi-bin/api/settings`) with:
+
+```json
+{
+  "endpoint": "http://your-server:8000"
+}
+```
+
+This updates the device's `cloudregisterurl`, which is the URL it uses for all cloud communication.
+
+## Examples
+
+<CodeGroup>
+
+```bash cURL (two-step)
+# Step 1: try without key
+curl -X POST http://your-server:8082/api/configure-nest \
+  -H "Content-Type: application/json" \
+  -d '{"ip": "192.168.1.55"}'
+
+# If auth_required: true, step 2: retry with serial
+curl -X POST http://your-server:8082/api/configure-nest \
+  -H "Content-Type: application/json" \
+  -d '{"ip": "192.168.1.55", "api_key": "09AA01AB12345678"}'
+```
+
+```python Python
+import requests
+
+def configure_nest(ip, api_key=None):
+    payload = {'ip': ip}
+    if api_key:
+        payload['api_key'] = api_key
+
+    resp = requests.post('http://your-server:8082/api/configure-nest', json=payload)
+    result = resp.json()
+
+    if resp.status_code == 401 and result.get('auth_required') and not api_key:
+        # Retry with the device serial as API key
+        serial = input(f"Enter serial for device at {ip}: ")
+        return configure_nest(ip, api_key=serial)
+
+    return result
+
+result = configure_nest('192.168.1.55')
+print(result)
+```
+
+</CodeGroup>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="POST /api/scan-network" href="/api-reference/control/scan">
+    Discover devices on the network first
+  </Card>
+  <Card title="POST /api/register" href="/api-reference/control/register">
+    Register a device after pointing it here
+  </Card>
+</CardGroup>

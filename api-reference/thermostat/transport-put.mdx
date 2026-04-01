@@ -1,0 +1,148 @@
+---
+title: POST /nest/transport/put
+description: 'Device-to-server state updates (PUT)'
+---
+
+## Overview
+
+`POST /nest/transport/put` is how the thermostat sends local state changes to the server — temperature dial turns, mode changes, sensor readings, HVAC status updates.
+
+<Info>
+  This endpoint is part of the **Device Protocol API** on port 8000. It is called directly by thermostat firmware — not by you.
+</Info>
+
+## Endpoint
+
+```
+POST http://your-server:8000/nest/transport/put
+```
+
+## Request
+
+### Headers
+
+```http
+POST /nest/transport/put HTTP/1.1
+Host: your-server:8000
+Content-Type: application/json
+Authorization: Basic <base64(d.SERIAL.SUFFIX:password)>
+X-nl-protocol-version: 1
+```
+
+### Body (Bucket-Keyed Format)
+
+```http
+{
+  "session": "18b430SERIAL",
+  "shared.09AB1234": {
+    "object_key": "shared.09AB1234",
+    "base_object_revision": 15,
+    "target_temperature": 22.0,
+    "target_temperature_type": "heat"
+  }
+}
+```
+
+### Body (Objects Array Format)
+
+```json
+{
+  "session": "18b430SERIAL",
+  "objects": [
+    {
+      "object_key": "shared.09AB1234",
+      "base_object_revision": 15,
+      "value": {
+        "target_temperature": 22.0
+      }
+    }
+  ]
+}
+```
+
+### Revision Fields
+
+| Field | Used by | Description |
+|-------|---------|-------------|
+| `base_object_revision` | Most buckets | Informational — no server validation required |
+| `if_object_revision` | `shared` bucket | Conditional write guard — server should check current revision |
+
+The `shared` bucket uses conditional writes (`if_object_revision`) because both the device and the server may update it concurrently (device dials the temperature, server sends a command at the same time).
+
+## Response
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+
+```json
+{
+  "objects": [
+    {
+      "object_revision": 16,
+      "object_timestamp": 1707149000000,
+      "object_key": "shared.09AB1234"
+    }
+  ]
+}
+```
+
+The response contains the updated revision and timestamp for each bucket that was processed. It does **not** include a `value` field.
+
+<Warning>
+  **Never include a `value` field in the PUT response.** The device treats any `value` in a PUT response as authoritative cloud data and applies every field as an overwrite — including fields the device just updated locally. This can cause the device to silently lose local state changes.
+</Warning>
+
+## Server Merge Behavior
+
+For each incoming PUT object, the server:
+
+1. Merges the incoming fields into the stored bucket (shallow merge)
+2. Only bumps revision and timestamp if values actually changed
+3. Does **not** notify subscribers (the PUT response is the only data path back to the device; server pushes go through subscribe)
+
+## Examples
+
+A thermostat dial turn triggers a PUT:
+
+```json
+POST /nest/transport/put
+
+{
+  "session": "18b430ABCDEF",
+  "shared.09AB01AB12345678": {
+    "object_key": "shared.09AB01AB12345678",
+    "base_object_revision": 15,
+    "if_object_revision": 15,
+    "target_temperature": 22.0,
+    "target_temperature_type": "heat",
+    "target_change_pending": false
+  }
+}
+```
+
+Response:
+
+```json
+{
+  "objects": [
+    {
+      "object_revision": 16,
+      "object_timestamp": 1707149000000,
+      "object_key": "shared.09AB01AB12345678"
+    }
+  ]
+}
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="POST /nest/transport" href="/api-reference/thermostat/transport-subscribe">
+    Subscribe endpoint (server → device)
+  </Card>
+  <Card title="Nest Protocol: Transport" href="/nest-protocol/transport">
+    Full protocol documentation
+  </Card>
+</CardGroup>

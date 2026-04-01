@@ -1,0 +1,175 @@
+---
+title: schedule bucket
+description: 'Temperature schedule — JSON format, sync guards, and how to push/read schedules'
+---
+
+## Overview
+
+The `schedule` bucket holds the weekly temperature schedule. Unlike most buckets, the device subscribes to this bucket explicitly (it appears in the device's subscribe request body), so you don't need to inject it.
+
+**Object key:** `schedule.{serial}`  
+**Direction:** Bidirectional (with sync guards)  
+**Revision type:** `base_object_revision` (unconditional)
+
+---
+
+## Schedule JSON Format
+
+The schedule is a single JSON object with the full weekly schedule. Version is always `2`.
+
+```json
+{
+  "ver": 2,
+  "name": "My Schedule",
+  "schedule_mode": "HEAT",
+  "days": {
+    "0": {
+      "0": {"type": "HEAT", "time": 21600, "entry_type": "setpoint", "temp": 20.0},
+      "1": {"type": "HEAT", "time": 28800, "entry_type": "setpoint", "temp": 21.5},
+      "2": {"type": "HEAT", "time": 64800, "entry_type": "setpoint", "temp": 19.0}
+    },
+    "1": {
+      "0": {"type": "HEAT", "time": 21600, "entry_type": "setpoint", "temp": 20.0}
+    },
+    "2": {},
+    "3": {},
+    "4": {},
+    "5": {},
+    "6": {}
+  }
+}
+```
+
+### Top-Level Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `ver` | integer | Yes | Always `2` |
+| `name` | string | Yes | Schedule name (e.g., `"Default"`) |
+| `schedule_mode` | string | Yes | `"HEAT"`, `"COOL"`, or `"RANGE"` |
+| `days` | object | Yes | Day containers keyed `"0"` through `"6"` |
+
+---
+
+## Day Indexing
+
+Days are integer strings starting from **Monday = 0**:
+
+| Key | Day |
+|-----|-----|
+| `"0"` | Monday |
+| `"1"` | Tuesday |
+| `"2"` | Wednesday |
+| `"3"` | Thursday |
+| `"4"` | Friday |
+| `"5"` | Saturday |
+| `"6"` | Sunday |
+
+<Warning>
+  **Monday = 0, not Sunday.** This differs from many programming language conventions (JavaScript `Date.getDay()` uses Sunday = 0). Double-check your day mapping when generating schedules.
+</Warning>
+
+Within each day, setpoints are keyed by sequential integer strings: `"0"`, `"1"`, `"2"`, etc.
+
+---
+
+## Setpoint Fields
+
+| Field | Type | Modes | Description |
+|-------|------|-------|-------------|
+| `type` | string | All | `"HEAT"`, `"COOL"`, or `"RANGE"` — must match `schedule_mode` |
+| `time` | integer | All | Seconds from midnight (0–86399) |
+| `entry_type` | string | All | `"setpoint"` (user-configured) or `"continuation"` (auto-generated filler) |
+| `temp` | float | HEAT, COOL | Target temperature in °C |
+| `temp-min` | float | RANGE | Lower bound in °C |
+| `temp-max` | float | RANGE | Upper bound in °C |
+
+```
+21600 = 6:00 AM (6 × 3600)
+28800 = 8:00 AM (8 × 3600)
+64800 = 6:00 PM (18 × 3600)
+```
+
+All temperatures are **Celsius floats**. The device converts for display based on `temperature_scale`.
+
+---
+
+## Schedule Modes
+
+| Mode | Description | Temperature fields |
+|------|-------------|--------------------|
+| `HEAT` | Heating only | `temp` |
+| `COOL` | Cooling only | `temp` |
+| `RANGE` | Dual heat and cool | `temp-min`, `temp-max` |
+
+The active schedule mode is stored in the **shared bucket** as `schedule_mode` — not inside the schedule itself. To switch modes, push `schedule_mode` to the shared bucket.
+
+The `schedule_mode` inside the schedule JSON and the `schedule_mode` in the shared bucket must match. If they differ, the device ignores the schedule.
+
+---
+
+## Pushing a Schedule
+
+Always push the **complete** schedule — all 7 days, all setpoints. There is no mechanism to add or remove individual setpoints. The device replaces the entire schedule on each push.
+
+```json
+{
+  "objects": [
+    {
+      "object_revision": 100,
+      "object_timestamp": 1707148800000,
+      "object_key": "schedule.09AA01AB12345678",
+      "value": { ...complete schedule JSON... }
+    }
+  ]
+}
+```
+
+---
+
+## Reading Schedules from the Device
+
+The device sends schedule changes via PUT requests:
+
+```json
+{
+  "session": "sess_xyz789",
+  "schedule.09AA01AB12345678": {
+    "object_key": "schedule.09AA01AB12345678",
+    "base_object_revision": 99,
+    "ver": 2,
+    "name": "Default",
+    "schedule_mode": "HEAT",
+    "days": { ... }
+  }
+}
+```
+
+Note: Schedule data is **inline** in the PUT (not nested in `value`). Store the complete schedule value. Return it on subscribe when the server's version is newer.
+
+---
+
+## Sync Guards
+
+Three mechanisms protect schedule integrity:
+
+| Guard | Description |
+|-------|-------------|
+| **15-second debounce** | Multiple schedule pushes within 15s — only the last one takes effect. Do not retry within this window. |
+| **Timestamp rejection** | If your push has an older timestamp than the device's current schedule, the device silently discards it. Always use a current `object_timestamp`. |
+| **Pending local change** | If the user is editing the schedule on-device, incoming server pushes are silently discarded. The device's local version takes priority. |
+
+---
+
+## Learning Mode Warning
+
+When learning mode is enabled, the device's auto-schedule system may modify a schedule you pushed based on subsequent dial turns. To prevent this, disable learning before pushing:
+
+```json
+{
+  "object_key": "device.09AA01AB12345678",
+  "value": { "learning_mode": false }
+}
+```
+
+Then push your schedule. Re-enable learning afterward if desired.

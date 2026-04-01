@@ -1,0 +1,173 @@
+---
+title: device bucket
+description: 'The largest bucket — device telemetry, configuration, hardware state, and sensor readings'
+---
+
+## Overview
+
+The `device` bucket is the most complex, with 239 registered fields. It contains a mixture of device telemetry (read-only), cloud-writable configuration, and special-purpose fields.
+
+**Object key:** `device.{serial}`  
+**Direction:** Bidirectional (with per-field restrictions)  
+**Revision type:** `base_object_revision` (unconditional)
+
+---
+
+## Field Access Modes
+
+Not all fields in the device bucket work the same way:
+
+| Mode | Count | Server can write? | Description |
+|------|-------|-------------------|-------------|
+| **Device-only** | 113 | No — device overwrites | Hardware state, sensors, computed values |
+| **Cloud-writable** | 103 | Yes | Configuration the server can push |
+| **Special** | 23 | Varies | Custom processing paths (eco, HVAC capacities) |
+
+<Warning>
+  If you push a device-only field, the device compares it against its local value. If different, the device marks the field dirty and re-sends its own value in the next PUT — **the device always wins**. Accept these re-PUTs normally.
+</Warning>
+
+---
+
+## Key Read-Only Fields
+
+These are the most important device-only fields. The server stores them (from device PUTs) but must not push them back.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `current_temperature` | float | Indoor temperature in °C *(note: actually in `shared` bucket)* |
+| `current_humidity` | integer | Relative humidity (%) |
+| `backplate_temperature` | float | Backplate sensor temperature (°C) |
+| `battery_level` | float | Battery voltage level |
+| `has_fan` | boolean | Fan wiring detected |
+| `has_humidifier` | boolean | Humidifier wiring detected |
+| `has_dehumidifier` | boolean | Dehumidifier wiring detected |
+| `has_emer_heat` | boolean | Emergency/auxiliary heat wiring detected |
+| `has_hot_water_control` | boolean | Hot water system detected (UK/EU) |
+| `can_heat` | boolean | Device can heat *(actually in `shared` bucket)* |
+| `can_cool` | boolean | Device can cool *(actually in `shared` bucket)* |
+| `time_to_target` | integer | Estimated seconds until target temperature |
+| `time_to_target_training` | string | Training status: `"ready"`, `"training"`, or `"not_ready"` |
+| `error_code` | string | Active error code |
+| `serial_number` | string | Device serial number |
+| `current_version` | string | Firmware version |
+| `model_version` | string | Hardware model |
+| `local_ip` | string | Device IP on local network |
+| `mac_address` | string | WiFi MAC address |
+| `leaf` | boolean | Nest Leaf icon displayed |
+| `auto_away` | integer | Occupancy sensor: `0` = home, `1` = away |
+
+---
+
+## Cloud-Writable Fields
+
+These fields accept server writes via subscribe responses. Push them inside the `value` object of a `device.{serial}` bucket.
+
+<AccordionGroup>
+  <Accordion title="Temperature settings" icon="temperature-half">
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `away_temperature_high` | float | Upper eco temperature (°C) |
+| `away_temperature_high_enabled` | boolean | Enable upper eco limit |
+| `away_temperature_low` | float | Lower eco temperature (°C) |
+| `away_temperature_low_enabled` | boolean | Enable lower eco limit |
+| `temperature_scale` | string | Display unit: `"F"` or `"C"` (display only — data is always Celsius) |
+| `upper_safety_temp` | float | Upper safety limit (°C) |
+| `upper_safety_temp_enabled` | boolean | Enable upper safety limit |
+| `lower_safety_temp` | float | Lower safety limit (°C) |
+| `lower_safety_temp_enabled` | boolean | Enable lower safety limit |
+
+  </Accordion>
+  <Accordion title="Fan settings" icon="fan">
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `fan_mode` | string | `"off"`, `"auto"`, or `"duty-cycle"` |
+| `fan_timer_duration` | integer | Fan timer length (seconds) |
+| `fan_timer_timeout` | integer | Fan timer end time (Unix timestamp) — set to `0` to stop |
+| `fan_duty_cycle` | integer | Minutes per hour for duty-cycle mode |
+| `fan_cooling_enabled` | boolean | Airwave — runs fan with AC coil residual cold |
+| `fan_duty_start_time` | integer | Fan schedule start (seconds from midnight) |
+| `fan_duty_end_time` | integer | Fan schedule end (seconds from midnight) |
+| `fan_schedule_speed` | string | Fan speed during scheduled runs |
+
+  </Accordion>
+  <Accordion title="Temperature lock" icon="lock">
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `temperature_lock` | boolean | Enable temperature lock |
+| `temperature_lock_pin_hash` | string | Lock PIN hash |
+| `temperature_lock_high_temp` | float | Max allowed temperature when locked (°C) |
+| `temperature_lock_low_temp` | float | Min allowed temperature when locked (°C) |
+
+  </Accordion>
+  <Accordion title="Learning and scheduling" icon="brain">
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `learning_mode` | boolean | Auto-schedule learning enabled |
+| `schedule_learning_reset` | boolean | Reset all learned schedule data |
+| `preconditioning_enabled` | boolean | Start heating/cooling before schedule transitions |
+| `max_nighttime_preconditioning_seconds` | integer | Max preconditioning duration at night |
+
+  </Accordion>
+  <Accordion title="Humidity control" icon="droplet">
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `target_humidity` | float | Target humidity (%) |
+| `target_humidity_enabled` | boolean | Enable humidity targeting |
+| `auto_dehum_enabled` | boolean | Automatic dehumidification |
+| `humidifier_type` | string | Humidifier type |
+| `dehumidifier_type` | string | Dehumidifier type |
+
+  </Accordion>
+  <Accordion title="Heat pump / dual fuel" icon="heat">
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `dual_fuel_breakpoint` | float | Temperature below which aux heat activates (°C) |
+| `dual_fuel_selected` | boolean | Dual fuel mode active |
+| `heat_pump_aux_threshold` | float | Aux heat lockout temperature (°C) |
+| `heat_pump_aux_threshold_enabled` | boolean | Enable aux heat threshold |
+| `heat_pump_comp_threshold` | float | Compressor lockout temperature (°C) |
+| `heat_pump_comp_threshold_enabled` | boolean | Enable compressor threshold |
+| `heatpump_savings` | string | `"max-savings"`, `"balanced"`, or `"max-comfort"` |
+
+  </Accordion>
+  <Accordion title="Display and device settings" icon="display">
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `farsight_screen` | string | What the display shows on standby |
+| `should_wake_on_approach` | boolean | Wake display when someone approaches |
+| `click_sound` | boolean | Audible click on dial turn |
+| `sunlight_correction_enabled` | boolean | Compensate for direct sunlight on sensor |
+| `radiant_control_enabled` | boolean | Optimize for radiant/underfloor heating |
+| `auto_away_enable` | boolean | Enable occupancy-based auto-away |
+| `home_away_input` | boolean | Enable home/away feature globally |
+
+  </Accordion>
+  <Accordion title="Hot water (UK/EU Heat Link)" icon="water">
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `hot_water_mode` | string | `"schedule"` or `"off"` |
+| `hot_water_boost_time_to_end` | integer | Boost timer end (Unix timestamp) |
+| `hot_water_away_enabled` | boolean | Allow hot water during eco mode |
+| `hot_water_temperature` | float | Hot water target temperature (°C) |
+
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Safety Fields Behavior
+
+When any safety-related field changes, the device forces four additional fields into its next PUT regardless of whether they changed:
+
+`battery_level`, `safety_temp_activating_hvac`, `safety_state`, `safety_state_time`
+
+Accept these extra fields in your normal merge process.

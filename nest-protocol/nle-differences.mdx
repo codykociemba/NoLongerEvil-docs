@@ -1,0 +1,98 @@
+---
+title: NLE vs Google Nest Cloud
+description: 'How NoLongerEvil differs from the original Google Nest cloud implementation'
+---
+
+## Overview
+
+NoLongerEvil implements the same Nest Cloud Protocol that Google's servers use — the device firmware doesn't know the difference. However, the server internals are substantially simplified for home use.
+
+---
+
+## Authentication and Pairing
+
+| | Google Nest Cloud | NoLongerEvil |
+|--|-------------------|--------------|
+| **User auth** | OAuth 2.0 + JWT tokens | None (no user accounts on the device protocol layer) |
+| **Device auth** | Full credential provisioning via `X-nl-set-client-credentials` | Accepts all credentials — serial extracted from Basic Auth |
+| **Pairing flow** | Mobile app ↔ cloud ↔ device OAuth exchange | 7-character alphanumeric entry code |
+| **Credential management** | Provisioned device-specific credentials | No provisioning — default credentials accepted forever |
+
+**Why:** NLE skips credential provisioning entirely to avoid the credential loop bug and because home deployments don't need per-device auth secrets.
+
+---
+
+## Pairing States
+
+NLE uses a 3-tier pairing model:
+
+| State | Meaning |
+|-------|---------|
+| **Paired** | Device has been claimed with a valid entry code |
+| **Pending** | Entry key exists but hasn't been claimed yet |
+| **Unknown** | Device has connected but no entry key exists |
+
+Google's cloud uses a full OAuth + mobile app pairing flow that NLE replaces with the simpler entry code UI.
+
+---
+
+## Timestamp Sync
+
+| | Google Nest Cloud | NoLongerEvil |
+|--|-------------------|--------------|
+| **Sync resolution** | Timestamp + revision with complex conflict handling | **Timestamp-only** (simplified) |
+| **Clock authority** | Cloud-authoritative via `X-nl-service-timestamp` | Server-authoritative via `X-nl-service-timestamp` |
+
+NLE's simplified timestamp-only sync is sufficient for single-server deployments. Google's cloud handles eventual consistency across distributed infrastructure.
+
+---
+
+## Features Not Implemented
+
+These Google Nest cloud features are not available on the self-hosted server:
+
+| Feature | Status |
+|---------|--------|
+| Away Assist (AI occupancy prediction) | Not implemented |
+| EnergyIQ / Seasonal Savings | Not implemented |
+| Rush Hour Rewards / demand response | Not implemented |
+| Nest Aware video integration | Not implemented |
+| Person detection | Not implemented |
+| Farsight / Rush Hour integration | Not implemented |
+| Multi-user account management | Not implemented |
+| Shared device permissions | Not implemented |
+| Nest Home / Works with Nest integrations | Not implemented |
+
+---
+
+## Persistence
+
+| | Google Nest Cloud | NoLongerEvil |
+|--|-------------------|--------------|
+| **Storage** | Distributed cloud databases (Bigtable, etc.) | SQLite (single file) |
+| **Consistency** | Eventual consistency across regions | Immediate (single process) |
+| **Structures** | Multiple structures per account | Single default structure per device |
+| **User accounts** | Full Google account integration | `homeassistant` user ID by default |
+
+---
+
+## MQTT Integration
+
+NLE adds MQTT support that the original Nest cloud does not expose:
+
+- Device state changes are published to an MQTT broker
+- Home Assistant and other MQTT-based systems can receive real-time updates
+- MQTT is optional and configured separately from the core server
+
+---
+
+## What Stays the Same
+
+The device protocol itself is identical. The thermostat firmware:
+- Connects to the same endpoints with the same request format
+- Receives the same chunked subscribe responses
+- Uses the same bucket system and sync protocol
+- Applies the same field ordering requirement
+- Follows the same timing constraints
+
+From the device's perspective, NLE is indistinguishable from Google's cloud.

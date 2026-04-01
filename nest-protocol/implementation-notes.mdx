@@ -1,0 +1,108 @@
+---
+title: Implementation Notes
+description: 'Critical quirks, timing constraints, and battery behavior for server implementers'
+---
+
+## Critical Quirks
+
+These are the most common implementation mistakes. Each one can cause silent, hard-to-debug failures.
+
+| # | Quirk | Consequence if wrong |
+|---|-------|---------------------|
+| 1 | **Always include explicit port in server URLs** (e.g., `:8000`) | WoWLAN fails — server push cannot wake sleeping device |
+| 2 | **`object_revision` and `object_timestamp` must appear before `object_key`** in JSON | Device silently ignores the update or fails to parse it |
+| 3 | **`expires` in entry key response must be a JSON number**, not a string | Device rejects response — never displays entry code |
+| 4 | **Never include `value` field in PUT responses** | Device overwrites its own local state with server data |
+| 5 | **Never provision credentials via 401 responses** | Device enters credential loop — cycles between defaults and assigned credentials indefinitely |
+| 6 | **Use `manual_eco_all`, not `away`, for direct eco control** | `away` triggers delayed, schedule-preconditioning-interruptible eco instead of immediate |
+| 7 | **`manual_eco_timestamp` is Unix seconds, not milliseconds** | Device rejects eco change (600s window validation fails) |
+| 8 | **Always push complete schedules** — no partial setpoint updates | Device replaces entire schedule; partial push wipes unincluded days |
+| 9 | **Monday = 0, not Sunday** in schedule day keys | Schedule shifted by one day |
+| 10 | **All temperatures are Celsius** — never Fahrenheit in data | Device displays wrong values; schedule setpoints off by ~32°F |
+| 11 | **Connection hold time must be shorter than `X-nl-suspend-time-max`** | Device's fallback timer fires first — unpredictable behavior |
+| 12 | **Don't set `target_change_pending: true` again after device cleared it** | Creates update loop — display keeps cycling |
+| 13 | **Don't push stale `target_temperature` values on every subscribe** | Overrides schedule-derived setpoints with old cloud values |
+| 14 | **Don't push device-only fields** (e.g., `current_temperature`) | Device overwrites your value in the next PUT |
+| 15 | **Check `can_heat`/`can_cool` before pushing HVAC mode** | Device silently falls back to supported mode — confusing UI state |
+| 16 | **Include user and structure buckets on every subscribe** for paired devices | Device loses pairing state after reboot |
+| 17 | **Wait ≥15 seconds between schedule pushes** | Second push lands in debounce window and is silently discarded |
+
+---
+
+## Timing Reference
+
+| Timer | Duration | Source | Notes |
+|-------|----------|--------|-------|
+| `X-nl-suspend-time-max` | 300s (recommended) | Server-set header | Device safety-net wake timer; must be ≤350s |
+| Connection hold time | 290s (= suspend - 10) | Server behavior | Must be shorter than `X-nl-suspend-time-max` |
+| Device closing window | 5s | Device-internal | After receiving body data; resets on each chunk |
+| Batch window | ≤3s | Server behavior | Time between chunks on same connection |
+| Eco timestamp window | ±600s | Device-internal | `manual_eco_timestamp` must match device clock ±10 min |
+| Schedule debounce | 15s | Device-internal | Sliding window; last push wins |
+| Immediate timeout | 7s | Device-internal | Applies if response lacks `Transfer-Encoding: chunked` |
+| Idle connection timeout | ~360s | Device-internal | Connection considered dead; device resubscribes silently |
+| `X-nl-defer-device-window` | 15–30s (recommended) | Server-set header | Delay for device PUT batching |
+| `X-nl-disable-defer-window` | 60s (after push) | Server-set header | Suppress defer delay temporarily |
+
+---
+
+## Battery Voltage Thresholds
+
+| Voltage | Effect |
+|---------|--------|
+| 3.8V+ | Normal operation |
+| 3.7V | +25 seconds added to sleep duration |
+| 3.65V | Low battery flag set |
+| **3.6V** | **WiFi disabled — device goes offline** |
+| 3.5V | +225 seconds added to sleep duration |
+
+When battery drops below 3.6V, the device goes completely offline and reconnects only after voltage recovers above 3.8V.
+
+**Recommendation:** Queue updates for offline devices and deliver them on the next subscribe after reconnect.
+
+---
+
+## URL Port Requirement
+
+**Always include an explicit port in server URLs.** Even for standard ports.
+
+```
+WRONG:  http://your-server/nest/transport
+CORRECT: http://your-server:8000/nest/transport
+```
+
+Without an explicit port, the device's URL parser fails to extract the port for TCP keepalive offload (WoWLAN). Result: the server can push data but the device does not wake — it stays asleep until its safety-net timer fires.
+
+The NLE server automatically appends the explicit port via `api_origin_with_port` when generating URLs in the entry response.
+
+---
+
+## Entry Key `expires` Field
+
+The `expires` field in the passphrase response **must be a JSON number**, not a string:
+
+```json
+// CORRECT
+{"value": "A3XR7M2", "expires": 1707234600000}
+
+// WRONG — device silently rejects
+{"value": "A3XR7M2", "expires": "1707234600000"}
+```
+
+The expiration must also be at least 30 minutes in the future from the device's perspective.
+
+---
+
+## Session ID Behavior
+
+The device's `session` field in subscribe requests is **not a unique connection identifier**. The device reuses the same session value across all subscribe requests during its operational lifetime.
+
+Do not use `session` to track or de-duplicate subscriptions. Generate your own server-side subscription ID for each connection.
+
+---
+
+## Overlapping Subscriptions
+
+When a device wakes early, it may send a new subscribe request before the previous connection closes. Your server may briefly hold two active subscriptions for the same device. This is normal.
+
+Push data to **all** active subscriptions for a device. Remove a subscription only when its specific connection closes. Never close a subscription because a newer one arrived.

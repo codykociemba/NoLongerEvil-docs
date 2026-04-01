@@ -1,342 +1,160 @@
 ---
-title: POST/GET /entry
-description: 'Initial device connection endpoint that returns service URLs'
+title: GET/POST /nest/entry
+description: 'Device service discovery — first request a thermostat makes on boot'
 ---
 
 ## Overview
 
-The `/entry` endpoint is the **first request** a Nest thermostat makes when booting up. It's used to discover the URLs for other API services.
+`/nest/entry` is the **first request** a Nest thermostat makes when it boots or reconnects to WiFi. The device uses the response to discover the URLs for all other services it needs.
 
 <Info>
-  This endpoint returns the same service URLs that Google's servers would return, but pointing to No Longer Evil infrastructure instead.
+  This endpoint is part of the **Device Protocol API** on port 8000. It is called directly by thermostat firmware — you do not need to call it yourself.
 </Info>
 
 ## Endpoint
 
 ```
-POST/GET https://backdoor.nolongerevil.com/entry
+GET  http://your-server:8000/nest/entry
+POST http://your-server:8000/nest/entry
 ```
 
-<Note>
-  Both POST and GET methods are supported for compatibility. Most thermostats use POST.
-</Note>
+Both methods are supported. Production firmware uses POST with form-urlencoded body.
 
 ## Authentication
 
-- **Method**: HTTP Basic Auth
-- **Username**: Device serial number
-- **Password**: Device serial number (same as username)
+HTTP Basic Auth. The device sends its serial number embedded in the user ID:
+
+```
+Authorization: Basic <base64(d.SERIAL.SUFFIX:password)>
+```
+
+The server extracts the serial from the Basic Auth user ID and accepts all credentials.
 
 ## Request
 
-### Headers
+### POST (form-urlencoded — production firmware)
 
 ```http
-POST /entry HTTP/1.1
-Host: backdoor.nolongerevil.com
-Authorization: Basic MDJBQjAxQUMwMTIzNDU2Nzg6MDJBQjAxQUMwMTIzNDU2Nzg=
-User-Agent: Nest/5.9.3
-Content-Type: application/json
+POST /nest/entry HTTP/1.1
+Host: your-server:8000
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic <base64(d.09AA01AB12345678.BC7C9039:password)>
+
+reset=FALSE&mac=18B430ABCDEF&model=Diamond-2.6&request_id=1&software_version=5.9.3-5
 ```
 
-### Body
+### POST body fields
 
-The thermostat typically sends an empty body or basic device information:
-
-```json
-{}
-```
-
-Or:
-
-```json
-{
-  "known_bucket_types": ["buckets"],
-  "known_bucket_versions": []
-}
-```
+| Field | Description |
+|-------|-------------|
+| `reset` | `TRUE` if factory reset, `FALSE` otherwise |
+| `mac` | WiFi MAC address (12 hex chars, no separators) |
+| `model` | Device model string (e.g., `Diamond-2.6`) |
+| `request_id` | Monotonically increasing request counter |
+| `software_version` | Current firmware version |
+| `wireless_reg_domain` | WiFi regulatory domain (e.g., `US`, `EU`) |
+| `backplate_model` | Backplate model string |
 
 ## Response
 
-### Success Response (200 OK)
+### Self-Hosted Response (200 OK)
+
+The self-hosted server returns a **flat JSON object** — no wrapper object:
 
 ```json
 {
-  "service_urls": {
-    "transport_url": "https://backdoor.nolongerevil.com",
-    "weather_url": "https://backdoor.nolongerevil.com",
-    "log_upload_url": "https://backdoor.nolongerevil.com/upload",
-    "direct_transport_url": "https://backdoor.nolongerevil.com",
-    "rubyapi_url": "https://backdoor.nolongerevil.com",
-    "support_url": "https://nolongerevil.com/support",
-    "frontdoor_url": "https://nolongerevil.com"
-  },
-  "service_urls_overrides": {},
-  "weave_pairing_token": "NEST",
-  "is_nest_aware_eligible": true,
-  "nest_aware": {
-    "enabled": false
-  },
-  "limits": {
-    "thermostats": 20,
-    "smoke_detectors": 20,
-    "cameras": 10
-  }
+  "czfe_url": "http://your-server:8000/nest/transport",
+  "transport_url": "http://your-server:8000/nest/transport",
+  "direct_transport_url": "http://your-server:8000/nest/transport",
+  "passphrase_url": "http://your-server:8000/nest/passphrase",
+  "ping_url": "http://your-server:8000/nest/transport",
+  "pro_info_url": "http://your-server:8000/nest/pro_info",
+  "weather_url": "http://your-server:8000/nest/weather/v1?query=",
+  "upload_url": "http://your-server:8000/nest/upload",
+  "software_update_url": "",
+  "server_version": "1.0.1",
+  "tier_name": "local"
 }
 ```
 
-### Response Fields
+### Self-Hosted Response Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `service_urls` | Object | Map of service names to their base URLs |
-| `transport_url` | String | Primary API endpoint for device communication |
-| `weather_url` | String | Weather data API endpoint |
-| `log_upload_url` | String | Endpoint for uploading device logs |
-| `direct_transport_url` | String | Direct communication endpoint (same as transport_url) |
-| `rubyapi_url` | String | Legacy Ruby API endpoint |
-| `support_url` | String | Support website URL |
-| `frontdoor_url` | String | Main website URL |
-| `weave_pairing_token` | String | Token for Weave protocol (not used) |
-| `is_nest_aware_eligible` | Boolean | Nest Aware subscription eligibility |
-| `nest_aware.enabled` | Boolean | Whether Nest Aware is active |
-| `limits` | Object | Device limits per account |
+| `czfe_url` | string | Primary transport URL (same as `transport_url`) |
+| `transport_url` | string | Long-poll subscribe/PUT endpoint |
+| `direct_transport_url` | string | Direct transport URL (same server) |
+| `passphrase_url` | string | Entry key generation endpoint for device pairing |
+| `ping_url` | string | Connectivity health check endpoint |
+| `pro_info_url` | string | Pro device info endpoint |
+| `weather_url` | string | Weather proxy endpoint |
+| `upload_url` | string | Device log upload endpoint |
+| `software_update_url` | string | Firmware update URL (empty — no OTA updates) |
+| `server_version` | string | Server software version |
+| `tier_name` | string | Always `"local"` for self-hosted |
 
-<Tip>
-  **Why all URLs point to the same server**: For simplicity, No Longer Evil uses a single server for all services. Google's infrastructure uses separate servers for each service.
-</Tip>
+<Warning>
+  All URLs sent to the device **must include an explicit port number** (e.g., `:8000`). URLs without an explicit port can cause the device to fail TCP keepalive offload (WoWLAN), which is required for low-power operation. The server automatically appends the port via `api_origin_with_port`.
+</Warning>
 
-## Example Requests
+### Hosted Service Response
 
-<CodeGroup>
+The hosted service returns additional fields:
 
-```bash cURL
-curl -X POST https://backdoor.nolongerevil.com/entry \\
-  -u "02AB01AC012345678:02AB01AC012345678" \\
-  -H "Content-Type: application/json" \\
-  -d '{}'
-```
-
-```javascript JavaScript
-const serial = "02AB01AC012345678";
-const auth = btoa(`${serial}:${serial}`);
-
-const response = await fetch('https://backdoor.nolongerevil.com/entry', {
-  method: 'POST',
-  headers: {
-    'Authorization': `Basic ${auth}`,
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({})
-});
-
-const data = await response.json();
-console.log(data.service_urls);
-```
-
-```python Python
-import requests
-import base64
-
-serial = "02AB01AC012345678"
-auth = base64.b64encode(f"{serial}:{serial}".encode()).decode()
-
-response = requests.post(
-    'https://backdoor.nolongerevil.com/entry',
-    headers={
-        'Authorization': f'Basic {auth}',
-        'Content-Type': 'application/json'
-    },
-    json={}
-)
-
-data = response.json()
-print(data['service_urls'])
-```
-
-```go Go
-package main
-
-import (
-    "bytes"
-    "encoding/base64"
-    "encoding/json"
-    "fmt"
-    "io/ioutil"
-    "net/http"
-)
-
-func main() {
-    serial := "02AB01AC012345678"
-    auth := base64.StdEncoding.EncodeToString([]byte(serial + ":" + serial))
-
-    client := &http.Client{}
-    req, _ := http.NewRequest("POST", "https://backdoor.nolongerevil.com/entry", bytes.NewBuffer([]byte("{}")))
-    req.Header.Add("Authorization", "Basic "+auth)
-    req.Header.Add("Content-Type", "application/json")
-
-    resp, _ := client.Do(req)
-    defer resp.Body.Close()
-
-    body, _ := ioutil.ReadAll(resp.Body)
-    fmt.Println(string(body))
+```json
+{
+  "transport_url": "https://backdoor.nolongerevil.com",
+  "weather_url": "https://backdoor.nolongerevil.com",
+  "czfe_url": "https://backdoor.nolongerevil.com",
+  "direct_transport_url": "https://backdoor.nolongerevil.com",
+  "passphrase_url": "https://backdoor.nolongerevil.com/nest/passphrase",
+  "upload_url": "https://backdoor.nolongerevil.com/nest/upload",
+  "software_update_url": "",
+  "server_version": "1.0.1",
+  "tier_name": "hosted"
 }
 ```
 
-</CodeGroup>
+## Device Flow After Entry
 
-## Use Cases
+After receiving the entry response, the thermostat:
 
-### 1. Device Initial Setup
-
-When a thermostat first boots or reconnects to WiFi, it calls `/entry` to discover service URLs:
+1. Stores the `transport_url`
+2. Calls `GET {passphrase_url}` to get an entry key (for display during pairing)
+3. Begins long-poll subscribing at `POST {transport_url}` (the subscribe endpoint)
 
 ```mermaid
 sequenceDiagram
     participant T as Thermostat
-    participant API as No Longer Evil API
+    participant S as Server (port 8000)
 
-    T->>API: POST /entry (with serial auth)
-    API-->>T: service_urls response
-    T->>T: Store URLs for future requests
-    T->>API: POST /transport (using transport_url)
+    T->>S: POST /nest/entry (Basic Auth)
+    S-->>T: {transport_url, passphrase_url, ...}
+    T->>S: GET /nest/passphrase (get entry code to display)
+    S-->>T: {value: "A3XR7M2", expires: 1707...}
+    T->>S: POST /nest/transport (subscribe — long-poll begins)
+    S-->>T: chunked response (headers sent immediately)
+    Note over T,S: Connection held open for server push
 ```
 
-### 2. Health Check
-
-Thermostats may periodically call `/entry` to verify the server is still available:
-
-```javascript
-// Periodic health check (every 6 hours)
-setInterval(async () => {
-  const response = await fetch('/entry', {
-    method: 'POST',
-    headers: { 'Authorization': `Basic ${auth}` }
-  });
-
-  if (!response.ok) {
-    console.error('Server unreachable');
-    // Fall back to local operation
-  }
-}, 6 * 60 * 60 * 1000);
-```
-
-### 3. Self-Hosted URL Configuration
-
-When self-hosting, modify the firmware to point to your domain:
+## Example
 
 ```bash
-# During firmware build
-export API_ORIGIN="https://nest.yourdomain.com"
-
-# The /entry endpoint will return your URLs
+curl -X POST http://your-server:8000/nest/entry \
+  -u "d.02AB01AC012345678.00000000:password" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  --data-urlencode "reset=FALSE" \
+  --data-urlencode "model=Diamond-2.6" \
+  --data-urlencode "software_version=5.9.3-5"
 ```
 
-## Error Responses
-
-### 401 Unauthorized
-
-**Cause**: Invalid or missing authentication
-
-```json
-{
-  "error": "Unauthorized",
-  "message": "Invalid device credentials"
-}
-```
-
-**Solution**: Ensure serial number is correct in Basic Auth header
-
-### 500 Internal Server Error
-
-**Cause**: Server error (database connection, etc.)
-
-```json
-{
-  "error": "Internal Server Error",
-  "message": "Could not retrieve service configuration"
-}
-```
-
-**Solution**: Check server logs, verify Convex database is accessible
-
-## Implementation Details
-
-### Server-Side (Simplified)
-
-```javascript
-// server/index.js
-app.post('/entry', async (req, res) => {
-  const serial = extractSerialFromAuth(req.headers.authorization);
-
-  if (!serial) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
-  // Log device connection
-  await convex.mutation('logs:append', {
-    serial,
-    endpoint: '/entry',
-    timestamp: Date.now()
-  });
-
-  // Return service URLs
-  res.json({
-    service_urls: {
-      transport_url: process.env.API_ORIGIN,
-      weather_url: process.env.API_ORIGIN,
-      log_upload_url: `${process.env.API_ORIGIN}/upload`,
-      direct_transport_url: process.env.API_ORIGIN,
-      rubyapi_url: process.env.API_ORIGIN,
-      support_url: 'https://nolongerevil.com/support',
-      frontdoor_url: 'https://nolongerevil.com'
-    },
-    service_urls_overrides: {},
-    weave_pairing_token: 'NEST',
-    is_nest_aware_eligible: true,
-    nest_aware: { enabled: false },
-    limits: {
-      thermostats: 20,
-      smoke_detectors: 20,
-      cameras: 10
-    }
-  });
-});
-```
-
-## Testing
-
-### Manual Test
-
-```bash
-# Replace with your device serial
-SERIAL="02AB01AC012345678"
-
-curl -X POST https://backdoor.nolongerevil.com/entry \\
-  -u "$SERIAL:$SERIAL" \\
-  -H "Content-Type: application/json" \\
-  -d '{}' | jq
-```
-
-Expected output:
-```json
-{
-  "service_urls": {
-    "transport_url": "https://backdoor.nolongerevil.com",
-    ...
-  }
-}
-```
-
-## Next Endpoints
-
-After `/entry`, the thermostat typically calls:
+## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="/passphrase" icon="key" href="/api-reference/thermostat/passphrase">
-    Generate entry keys for device claiming
+  <Card title="GET /nest/passphrase" href="/api-reference/thermostat/passphrase">
+    Entry key generation for device pairing
   </Card>
-  <Card title="/transport/device/{serial}" icon="hard-drive" href="/api-reference/thermostat/transport-device">
-    Retrieve device state and configuration
+  <Card title="POST /nest/transport" href="/api-reference/thermostat/transport-subscribe">
+    Long-poll subscribe endpoint
   </Card>
 </CardGroup>

@@ -1,0 +1,97 @@
+---
+title: Control API Overview
+description: 'Self-hosted control API on port 8082 — commands, status, and device management'
+---
+
+## Overview
+
+The Control API is the interface you use to control your thermostats, query device status, and manage registrations. It runs on **port 8082** and has **no authentication by default**.
+
+<Info>
+  Port 8082 is separate from port 8000 (the device protocol port). Thermostats connect to port 8000. You connect to port 8082.
+</Info>
+
+## Base URL
+
+```
+http://your-server:8082
+```
+
+Replace `your-server` with your server's IP address or hostname.
+
+## Authentication
+
+The Control API has **no authentication by default**. It is designed for use on a trusted local network. If you expose it to the public internet, put it behind a reverse proxy with authentication.
+
+## Available Endpoints
+
+### Thermostat Control
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/command` | Send a command to a thermostat |
+| `POST` | `/notify-device` | Force-push current state to device subscribers |
+
+### Status & Monitoring
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/status` | Get full device state |
+| `GET` | `/api/events` | SSE stream of device state changes |
+| `GET` | `/api/schedule` | Get the current weekly schedule |
+| `GET` | `/api/stats` | Server statistics |
+| `GET` | `/health` | Server health check |
+
+### Device Management
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/devices` | List all registered devices |
+| `POST` | `/api/register` | Claim entry key and register a device |
+| `POST` | `/api/dismiss-pairing/{serial}` | Dismiss pairing dialog on device |
+
+### Network Discovery
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/scan-network` | Scan subnet for Nest devices |
+| `POST` | `/api/configure-nest` | Point a discovered Nest device at this server |
+
+### Configuration
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/config` | Server configuration (for the dashboard) |
+| `POST` | `/api/mqtt-config` | Configure MQTT integration |
+
+## Request Format
+
+All requests that have a body use `Content-Type: application/json`.
+
+## Response Format
+
+Success responses always return `200 OK` with a JSON body. Error responses use appropriate 4xx/5xx status codes.
+
+```json
+// Success
+{"success": true, "data": {...}}
+
+// Error
+{"success": false, "message": "Device not found"}
+
+// Some endpoints return data directly (not wrapped in success/data)
+{"serial": "...", "current_temperature": 21.5, ...}
+```
+
+## Port Configuration
+
+The control API port is configured via the `CONTROL_PORT` environment variable (default: `8082`). The bind address is configured via `CONTROL_HOST` (default: `0.0.0.0`).
+
+<CardGroup cols={2}>
+  <Card title="POST /command" href="/api-reference/control/command">
+    Send thermostat commands
+  </Card>
+  <Card title="GET /status" href="/api-reference/control/status">
+    Query device state
+  </Card>
+</CardGroup>

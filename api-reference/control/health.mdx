@@ -1,0 +1,62 @@
+---
+title: GET /health
+description: 'Server health check'
+---
+
+## Overview
+
+Simple health check endpoint. Returns `{"status": "ok"}` if the server is running. Useful for load balancers, container orchestration, and monitoring tools.
+
+## Endpoint
+
+```
+GET http://your-server:8082/health
+```
+
+## Response
+
+### Success (200 OK)
+
+```json
+{
+  "status": "ok"
+}
+```
+
+The server always returns `200 OK` with this body as long as the process is running. There is no deeper health check (e.g., database connectivity).
+
+## Examples
+
+<CodeGroup>
+
+```bash cURL
+curl http://your-server:8082/health
+```
+
+```bash Docker HEALTHCHECK
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:8082/health || exit 1
+```
+
+```yaml Home Assistant (binary sensor via RESTful)
+binary_sensor:
+  - platform: rest
+    name: "NLE Server"
+    resource: http://your-server:8082/health
+    value_template: "{{ value_json.status == 'ok' }}"
+    device_class: connectivity
+    scan_interval: 60
+```
+
+</CodeGroup>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="GET /api/stats" href="/api-reference/control/control-overview">
+    Detailed server statistics
+  </Card>
+  <Card title="GET /nest/ping" href="/api-reference/thermostat/ping">
+    Device protocol health check (port 8000)
+  </Card>
+</CardGroup>

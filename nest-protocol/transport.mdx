@@ -1,0 +1,234 @@
+---
+title: Transport & Long-Poll
+description: 'The subscribe/push mechanism — the heart of the Nest protocol'
+---
+
+## Overview
+
+The transport layer is the core of the Nest protocol. The device maintains a persistent HTTP connection (the "subscribe" connection) and receives server-pushed state updates as chunked responses. Separately, the device sends state changes to the server via PUT requests.
+
+---
+
+## Subscribe Connection
+
+### Request
+
+```http
+POST /nest/transport HTTP/1.1
+Host: your-server:8000
+Content-Type: application/json
+Authorization: Basic <base64(d.SERIAL.SUFFIX:password)>
+X-nl-protocol-version: 1
+
+{
+  "chunked": true,
+  "session": "18b430SERIAL",
+  "objects": [
+    {
+      "object_key": "device.09AA01AB12345678",
+      "object_revision": 42,
+      "object_timestamp": 1707148800000
+    },
+    {
+      "object_key": "shared.09AA01AB12345678",
+      "object_revision": 15,
+      "object_timestamp": 1707148800000
+    },
+    {
+      "object_key": "schedule.09AA01AB12345678",
+      "object_revision": 3,
+      "object_timestamp": 1707148800000
+    }
+  ]
+}
+```
+
+The device sends its current bucket revisions and timestamps. The server uses these to decide what to push.
+
+The device may also include **inline updates** (local state changes) by adding a `value` field with `object_revision: 0` and `object_timestamp: 0`:
+
+```json
+{
+  "object_key": "shared.09AA01AB12345678",
+  "object_revision": 0,
+  "object_timestamp": 0,
+  "value": { "target_temperature": 22.0 }
+}
+```
+
+### Response Headers
+
+The server **immediately** sends headers before any body:
+
+```http
+HTTP/1.1 200 OK
+Transfer-Encoding: chunked
+X-nl-suspend-time-max: 300
+X-nl-service-timestamp: 1707148800000
+X-nl-defer-device-window: 15
+```
+
+| Header | Required | Description |
+|--------|----------|-------------|
+| `Transfer-Encoding: chunked` | Yes | Enables server push and WoWLAN sleep |
+| `X-nl-suspend-time-max` | Yes | Device safety-net wake timer in seconds (recommend: 300) |
+| `X-nl-service-timestamp` | Recommended | Server timestamp in ms — used for sync decisions |
+| `X-nl-defer-device-window` | Recommended | Seconds to delay device PUT after local changes (15–30) |
+| `X-nl-disable-defer-window` | Optional | Temporarily disables defer delay for N seconds |
+
+After sending headers, the device offloads the TCP socket to WiFi hardware and sleeps. The server holds the connection open.
+
+### Response Body (Push)
+
+When the server has data to send, it writes a JSON chunk:
+
+```
+{hex_size}\r\n
+{"objects": [...]}\r\n
+0\r\n
+\r\n
+```
+
+<Warning>
+  **JSON field ordering is critical.** The device's JSON parser expects `object_revision` and `object_timestamp` to appear **before** `object_key` in each object. Incorrect ordering causes the device to silently ignore the update.
+
+  **Correct:**
+  ```json
+  {"object_revision": 16, "object_timestamp": 1707149000000, "object_key": "shared.SERIAL", "value": {...}}
+  ```
+
+  **Wrong:**
+  ```json
+  {"object_key": "shared.SERIAL", "object_revision": 16, "object_timestamp": 1707149000000, "value": {...}}
+  ```
+
+  Most JSON libraries don't guarantee field order. Use an ordered dictionary, manual JSON building, or a library that preserves insertion order.
+</Warning>
+
+### Push Example
+
+```json
+{
+  "objects": [
+    {
+      "object_revision": 16,
+      "object_timestamp": 1707149000000,
+      "object_key": "shared.09AA01AB12345678",
+      "value": {
+        "target_temperature": 22.0,
+        "target_change_pending": true
+      }
+    }
+  ]
+}
+```
+
+### When No Data Is Available
+
+If the server has nothing to push, it **holds the connection open silently** — no body, no empty JSON, no `{}`. When the hold time expires (290s), send the final chunk terminator:
+
+```
+0\r\n
+\r\n
+```
+
+This wakes the device and triggers a resubscribe.
+
+---
+
+## Synchronization Logic
+
+The server compares timestamps (not revisions) to decide what to push:
+
+| Condition | Server action |
+|-----------|---------------|
+| `server_timestamp > device_timestamp` | Include bucket in response |
+| `device_timestamp > server_timestamp` | Do not push (device has newer data) |
+| `device_timestamp = 0` | Sentinel: device has no data — push current state |
+
+**Timestamp is the sole authority for sync decisions.** Revision is used only for conditional writes (see [shared bucket](/nest-protocol/bucket-shared)).
+
+---
+
+## PUT (Device → Server)
+
+The device sends state changes via PUT requests.
+
+### Request
+
+```http
+POST /nest/transport/put HTTP/1.1
+Host: your-server:8000
+Content-Type: application/json
+X-nl-protocol-version: 1
+
+{
+  "session": "sess_xyz789",
+  "shared.09AA01AB12345678": {
+    "object_key": "shared.09AA01AB12345678",
+    "base_object_revision": 15,
+    "target_temperature": 22.5,
+    "target_temperature_type": "heat"
+  }
+}
+```
+
+PUT requests send bucket data at the top level, keyed by bucket identifier. Data fields are **inline** (not nested in a `value` object).
+
+### Response
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{"object_revision": 16, "object_timestamp": 1707149000000, "object_key": "shared.09AA01AB12345678"}
+```
+
+<Warning>
+  **Never include a `value` field in a PUT response.** The device treats any `value` field in a PUT response as authoritative cloud data and applies every field in it — the same code path as subscribe, with no filtering. This silently overwrites any local state changes the device made after sending the PUT.
+
+  Return only `{object_revision, object_timestamp, object_key}`.
+</Warning>
+
+---
+
+## Timing Reference
+
+| Timer | Duration | Notes |
+|-------|----------|-------|
+| Connection hold time | 290s (recommended) | Must be shorter than `X-nl-suspend-time-max` |
+| `X-nl-suspend-time-max` | 300s (recommended) | Device safety-net — must be ≤350s |
+| Device closing window | 5s | After receiving a chunk; resets on each subsequent chunk |
+| Batch window | ≤3s | Time between chunks on the same connection |
+| Eco timestamp window | ±600s | `manual_eco_timestamp` must be within 600s of device clock |
+| Schedule debounce | 15s | Device waits 15s after receiving a schedule before applying |
+
+---
+
+## Defer Window Headers
+
+The defer window controls how quickly the device sends local changes (e.g., dial turns) to the server.
+
+**`X-nl-defer-device-window: N`** — device delays sending local changes for up to N seconds. Batches rapid dial adjustments into a single PUT.
+
+**`X-nl-disable-defer-window: N`** — temporarily disables the defer delay for N seconds. Use this when you push a temperature change so the device's acknowledgment arrives promptly.
+
+```http
+Transfer-Encoding: chunked
+X-nl-suspend-time-max: 300
+X-nl-service-timestamp: 1707149000000
+X-nl-disable-defer-window: 60
+```
+
+---
+
+## Batching Multiple Pushes
+
+If multiple changes arrive quickly (user clicking +/- repeatedly), the server can batch them on a single subscribe connection instead of closing after each chunk:
+
+1. Send the first chunk immediately
+2. Hold the connection open for ≤3 seconds
+3. Send additional chunks as more data arrives
+4. Close after the batch window expires
+
+Each chunk must be a complete `{"objects": [...]}` JSON document. The device's 5-second closing timer resets on each chunk received.

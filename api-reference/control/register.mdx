@@ -1,0 +1,123 @@
+---
+title: POST /api/register
+description: 'Claim an entry key and register a device to a user'
+---
+
+## Overview
+
+Completes the device pairing flow by claiming an entry key (the 7-character code displayed on the thermostat) and associating the device with a user.
+
+After a successful registration:
+1. The entry key is marked as claimed
+2. An ownership record is created linking the device to the user
+3. The `user` bucket and `structure` bucket are pushed to the device, completing the pairing dialog on-screen
+
+## Endpoint
+
+```
+POST http://your-server:8082/api/register
+```
+
+## Request
+
+```json
+{
+  "code": "A3XR7M2",
+  "userId": "homeassistant"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `code` | string | Yes | 7-character alphanumeric entry code from the thermostat screen |
+| `userId` | string | Yes | User ID to register the device to (default: `"homeassistant"`) |
+
+The `code` field is case-insensitive and automatically uppercased.
+
+## Response
+
+### Success (200 OK)
+
+```json
+{
+  "success": true,
+  "serial": "02AB01AC012345678",
+  "message": "Device 02AB01AC012345678 registered to homeassistant"
+}
+```
+
+### Failure — Invalid/Expired/Already Claimed (200 OK)
+
+```json
+{
+  "success": false,
+  "message": "Invalid, expired, or already claimed entry key"
+}
+```
+
+<Note>
+  Registration failures return `200 OK` (not 4xx) to match the protocol convention. Check the `success` field.
+</Note>
+
+### Error (400 Bad Request)
+
+```json
+{
+  "success": false,
+  "message": "Invalid entry code format. Must be exactly 7 alphanumeric characters."
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "Missing required fields: code, userId"
+}
+```
+
+## Pairing Completion
+
+After registration, the server pushes two buckets to the device through any held subscribe connection:
+
+1. **`user.{userId}`** bucket with `{"name": "{userId}"}` — this is what triggers the pairing screen to dismiss on the device
+2. **`structure.{structureId}`** bucket with `{"name": "Home", "devices": [serial]}` — establishes the home association
+
+If the device has no active subscribe connection at registration time, the buckets are stored and will be sent on the next subscribe.
+
+## Examples
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST http://your-server:8082/api/register \
+  -H "Content-Type: application/json" \
+  -d '{"code": "A3XR7M2", "userId": "homeassistant"}'
+```
+
+```python Python
+import requests
+
+resp = requests.post('http://your-server:8082/api/register', json={
+    'code': 'A3XR7M2',
+    'userId': 'homeassistant'
+})
+result = resp.json()
+
+if result['success']:
+    print(f"Registered device: {result['serial']}")
+else:
+    print(f"Registration failed: {result['message']}")
+```
+
+</CodeGroup>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="GET /nest/passphrase" href="/api-reference/thermostat/passphrase">
+    Entry key generation on the device
+  </Card>
+  <Card title="GET /api/devices" href="/api-reference/control/devices">
+    List registered devices
+  </Card>
+</CardGroup>

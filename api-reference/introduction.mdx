@@ -1,126 +1,97 @@
 ---
 title: API Introduction
-description: 'Overview of the No Longer Evil API'
+description: 'Overview of the No Longer Evil APIs — hosted service and self-hosted server'
 ---
 
 ## Overview
 
-The No Longer Evil API is a modern REST API that lets you programmatically control your thermostats, monitor temperature, and integrate with home automation systems.
+No Longer Evil exposes two separate APIs depending on how you run it:
 
 <CardGroup cols={2}>
-  <Card title="Secure Authentication" icon="shield-check">
-    API key authentication with Bearer tokens and granular permission scopes
+  <Card title="Hosted Service API" icon="cloud">
+    `https://nolongerevil.com/api/v1` — REST API for cloud-managed devices. Requires an `nle_` API key.
   </Card>
-  <Card title="Comprehensive Control" icon="sliders">
-    Temperature, mode, fan, away mode, schedules, and more
-  </Card>
-  <Card title="Rate Limited" icon="gauge">
-    Built-in rate limiting to protect the service (20 req/min for API keys)
-  </Card>
-  <Card title="RESTful Design" icon="code">
-    Clean, predictable endpoints with JSON requests and responses
+  <Card title="Self-Hosted Control API" icon="server">
+    `http://your-server:8082` — Local control API for self-hosted deployments. No auth required by default.
   </Card>
 </CardGroup>
 
-## Base URL
+---
 
-All API requests should be made to:
+## Two-Port Architecture (Self-Hosted)
+
+The self-hosted server runs two independent HTTP services on different ports:
+
+| Port | Purpose | Used By |
+|------|---------|---------|
+| **8000** | Device Protocol API — Nest protocol emulation | Thermostats (firmware) |
+| **8082** | Control API — User/automation-facing control | Dashboard, scripts, integrations |
+
+<Info>
+  **Port 8000** speaks the Nest Cloud Protocol. Thermostats connect here using long-poll subscribe/PUT requests.
+
+  **Port 8082** is where you send commands, query status, and manage devices. This is the API you call from scripts, Home Assistant, or any automation tool.
+</Info>
+
+### Self-Hosted Base URLs
+
+```
+Device Protocol (thermostats):  http://your-server:8000
+Control API (you call this):     http://your-server:8082
+```
+
+---
+
+## Hosted Service Base URL
 
 ```
 https://nolongerevil.com/api/v1
 ```
 
-<Tip>
-  **Self-hosted users**: Replace the base URL with your own domain or use `http://localhost:3000/api/v1` for local development.
-</Tip>
+<Note>
+  The hosted REST API (`/api/v1`) does **not** exist on the self-hosted server. Self-hosted uses a flat control API on port 8082.
+</Note>
 
-## Getting Started
+---
 
-### 1. Get an API Key
+## Quick Start
 
-Navigate to [https://nolongerevil.com/settings](https://nolongerevil.com/settings) and click on the **API Keys** tab to generate your first API key.
+### Self-Hosted: Send a Command
 
-When creating an API key, you'll configure:
-- **Name**: A descriptive name for the key
-- **Scopes**: `read` (view status) and/or `write` (control devices)
-- **Device restrictions**: Optional limits to specific devices
+No API key needed. Just POST to port 8082:
 
-<Warning>
-  API keys are shown only once when created. Store them securely!
-</Warning>
+```bash
+curl -X POST http://your-server:8082/command \
+  -H "Content-Type: application/json" \
+  -d '{"serial": "02AB01AC012345678", "command": "set_temperature", "value": 21.5}'
+```
 
-### 2. Make Your First Request
+### Self-Hosted: Get Device Status
 
-Use your API key to list your devices:
+```bash
+curl http://your-server:8082/status?serial=02AB01AC012345678
+```
+
+### Hosted Service: List Devices
 
 ```bash
 curl https://nolongerevil.com/api/v1/devices \
   -H "Authorization: Bearer nle_your_api_key_here"
 ```
 
-### 3. Control Your Thermostat
-
-Set the temperature:
-
-```bash
-curl -X POST https://nolongerevil.com/api/v1/thermostat/{deviceId}/temperature \
-  -H "Authorization: Bearer nle_your_api_key_here" \
-  -H "Content-Type: application/json" \
-  -d '{"value": 72, "mode": "heat", "scale": "F"}'
-```
-
-## Authentication
-
-All API requests require authentication using an API key in the `Authorization` header:
-
-```
-Authorization: Bearer nle_your_api_key_here
-```
-
-API keys support two permission scopes:
-- **`read`**: View device status and settings
-- **`write`**: Control devices (temperature, mode, fan, etc.)
-
-Learn more in the [Authentication Guide](/api-reference/authentication).
-
-## Request Format
-
-All requests use **JSON** for request bodies with clear, RESTful endpoints.
-
-### Example: Set Temperature
-
-```json
-POST /api/v1/thermostat/{deviceId}/temperature
-Content-Type: application/json
-Authorization: Bearer nle_your_api_key_here
-
-{
-  "value": 72,
-  "mode": "heat",
-  "scale": "F"
-}
-```
-
-### Example: List Devices
-
-```bash
-GET /api/v1/devices
-Authorization: Bearer nle_your_api_key_here
-```
+---
 
 ## Response Format
-
-All responses are JSON with consistent structure:
 
 ### Success Response
 
 ```json
 {
   "success": true,
-  "message": "Command handled",
-  "device": "02AA01AB01234567",
-  "revision": 155,
-  "timestamp": 1764026377395
+  "data": {
+    "object_key": "shared.02AB01AC012345678",
+    "values": { "target_temperature": 21.5 }
+  }
 }
 ```
 
@@ -128,120 +99,26 @@ All responses are JSON with consistent structure:
 
 ```json
 {
-  "error": "Temperature value must be a number"
+  "success": false,
+  "message": "Unknown command: set_foo"
 }
 ```
 
-## Rate Limits
+---
 
-Rate limits are actively enforced to protect the service:
-
-| Authentication Type | Limit | Window |
-|---------------------|-------|--------|
-| User accounts (Clerk) | 100 requests | Per minute |
-| API keys | 20 requests | Per minute |
-
-**Rate Limit Headers** (included in all responses):
-```
-X-RateLimit-Limit: 20
-X-RateLimit-Remaining: 15
-X-RateLimit-Reset: 2025-01-24T12:34:56.000Z
-```
-
-When rate limited, you'll receive a `429 Too Many Requests` response:
-```json
-{
-  "error": "Rate limit exceeded",
-  "retryAfter": "2025-01-24T12:35:00.000Z"
-}
-```
-
-<Tip>
-  Monitor the `X-RateLimit-Remaining` header to track your usage and avoid hitting the limit.
-</Tip>
-
-## Error Handling
-
-### HTTP Status Codes
-
-| Code | Meaning | Common Causes |
-|------|---------|---------------|
-| `200` | Success | Request processed successfully |
-| `400` | Bad Request | Invalid parameters or malformed JSON |
-| `401` | Unauthorized | Invalid authentication or entry key |
-| `404` | Not Found | Device or endpoint doesn't exist |
-| `500` | Server Error | Internal server error, check logs |
-
-### Error Response Format
-
-All errors return a JSON object with an `error` field:
-
-**Validation Error (400)**:
-```json
-{
-  "error": "Temperature value must be a number"
-}
-```
-
-**Authentication Error (401)**:
-```json
-{
-  "error": "Unauthorized"
-}
-```
-
-**Permission Error (403)**:
-```json
-{
-  "error": "Access denied to this device"
-}
-```
-
-**Rate Limit Error (429)**:
-```json
-{
-  "error": "Rate limit exceeded",
-  "retryAfter": "2025-01-24T12:35:00.000Z"
-}
-```
-
-## Available Endpoints
-
-The API provides comprehensive control over your thermostats:
-
-### Device Management
-- **GET /devices** - List all accessible devices
-- **GET /thermostat/{id}/status** - Get device status and settings
-- **DELETE /thermostat/{id}** - Remove device from account
-
-### Temperature Control
-- **POST /thermostat/{id}/temperature** - Set target temperature
-- **POST /thermostat/{id}/temperature/range** - Set temperature range (heat-cool mode)
-
-### HVAC Control
-- **POST /thermostat/{id}/mode** - Set HVAC mode (heat/cool/auto/off)
-- **POST /thermostat/{id}/away** - Toggle away mode
-- **POST /thermostat/{id}/fan** - Control fan mode or timer
-
-### Advanced Features
-- **GET/PUT /thermostat/{id}/schedule** - Manage heating/cooling schedule
-- **POST /thermostat/{id}/lock** - Enable temperature lock with PIN
-
-See the full endpoint documentation in the [User API (v1)](/api-reference/v1/devices) section.
-
-## Next Steps
+## API Sections
 
 <CardGroup cols={2}>
-  <Card title="Get an API Key" icon="key" href="https://nolongerevil.com/settings">
-    Create your first API key in Settings
+  <Card title="Self-Hosted Control API" icon="terminal" href="/api-reference/control/control-overview">
+    Commands, status, device management — port 8082
   </Card>
-  <Card title="Authentication Guide" icon="shield-check" href="/api-reference/authentication">
-    Learn about API key authentication and scopes
+  <Card title="Device Protocol API" icon="microchip" href="/api-reference/thermostat/entry">
+    Nest protocol endpoints — port 8000 (advanced/reference)
   </Card>
-  <Card title="List Devices" icon="list" href="/api-reference/v1/devices">
-    Get all your thermostats
+  <Card title="Hosted Service API" icon="cloud" href="/api-reference/v1/devices">
+    REST API for the hosted service at nolongerevil.com
   </Card>
-  <Card title="Set Temperature" icon="temperature-half" href="/api-reference/v1/set-temperature">
-    Start controlling your thermostat
+  <Card title="Authentication" icon="shield-check" href="/api-reference/authentication">
+    Auth differences between hosted and self-hosted
   </Card>
 </CardGroup>

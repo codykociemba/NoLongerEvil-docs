@@ -1,137 +1,164 @@
 ---
-title: POST/GET /passphrase
-description: 'Generate entry keys for device claiming'
+title: GET /nest/passphrase
+description: 'Entry key generation and pairing status for device claiming'
 ---
 
 ## Overview
 
-The `/passphrase` endpoint generates 7-character entry keys that allow users to claim (link) devices to their accounts.
+The `/nest/passphrase` endpoint generates 7-character entry keys that allow users to claim (link) devices to their accounts. The device polls this endpoint during pairing to get the code it displays on-screen.
 
-## Endpoint
+A companion endpoint `/nest/passphrase/status` lets the device poll to find out if its entry key has been claimed.
+
+<Info>
+  These endpoints are part of the **Device Protocol API** on port 8000. They are called directly by thermostat firmware during the pairing flow.
+</Info>
+
+## Endpoints
 
 ```
-POST/GET https://backdoor.nolongerevil.com/passphrase
+GET http://your-server:8000/nest/passphrase
+GET http://your-server:8000/nest/passphrase/status
 ```
 
-## Authentication
+---
 
-HTTP Basic Auth with device serial number
+## GET /nest/passphrase
 
-## Request
+Returns the current unexpired entry key for the device. If no valid key exists, a new one is generated.
+
+The device polls this endpoint repeatedly during pairing. The server returns the **same** key on each request until it's claimed or expires — generating a new key on each call would invalidate the key before the user can enter it.
+
+### Request
 
 ```http
-POST /passphrase HTTP/1.1
-Host: backdoor.nolongerevil.com
-Authorization: Basic {base64(serial:serial)}
+GET /nest/passphrase HTTP/1.1
+Host: your-server:8000
+Authorization: Basic <base64(d.SERIAL.SUFFIX:password)>
 ```
 
-## Response (200 OK)
+The device serial is extracted from the Basic Auth user ID.
+
+### Response (200 OK)
 
 ```json
 {
-  "passphrase": "A3XR7M2",
-  "expires_at": "2025-11-11T14:30:00Z"
+  "value": "A3XR7M2",
+  "expires": 1707234600000
 }
 ```
-
-### Response Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `passphrase` | String | 7-character entry key (uppercase letters/numbers) |
-| `expires_at` | String (ISO 8601) | Expiration timestamp (default: 1 hour from now) |
+| `value` | string | 7-character alphanumeric entry key (e.g., `A3XR7M2`) |
+| `expires` | **number** | Expiration timestamp in **milliseconds** since Unix epoch |
 
-## Example
+<Warning>
+  The `expires` field **must be a JSON number**, not a string. If it is sent as `"1707234600000"` (a string), the device silently rejects the response and never displays the entry key. The expiration must be at least 30 minutes in the future.
+</Warning>
 
-```bash
-curl -X POST https://backdoor.nolongerevil.com/passphrase \
-  -u "02AB01AC012345678:02AB01AC012345678"
+### Entry Key Properties
+
+- **Length**: 7 alphanumeric characters
+- **Display format**: The device shows the code as `XXX-XXXX` (e.g., `A3X-R7M2`)
+- **TTL**: 1 hour by default (configurable via `ENTRY_KEY_TTL_SECONDS`)
+- **Reuse**: The same key is returned until claimed or expired
+- **Single-use**: Can only be claimed once
+
+### Error Responses
+
+| Status | Body | Cause |
+|--------|------|-------|
+| `400` | `{"error": "Device serial required"}` | Missing or unparseable Basic Auth |
+| `503` | `{"error": "Entry key service unavailable"}` | Database unavailable |
+
+---
+
+## GET /nest/passphrase/status
+
+Lets the device poll to discover if its entry key has been claimed by a user.
+
+### Request
+
+```http
+GET /nest/passphrase/status HTTP/1.1
+Host: your-server:8000
+Authorization: Basic <base64(d.SERIAL.SUFFIX:password)>
 ```
 
-Response:
+### Response: No Key Found
+
 ```json
 {
-  "passphrase": "K9M2XPR",
-  "expires_at": "2025-11-11T15:00:00Z"
+  "status": "no_key",
+  "claimed": false,
+  "message": "No entry key found for this device"
 }
 ```
 
-## Entry Key Properties
+### Response: Key Pending (not yet claimed)
 
-- **Length**: 7 characters
-- **Character set**: Uppercase A-Z and 0-9 (excluding ambiguous: 0/O, 1/I/L)
-- **Lifespan**: 1 hour (configurable via `ENTRY_KEY_TTL_SECONDS`)
-- **Single-use**: Can only claim one device
-- **Random generation**: Secure random generation prevents guessing
+```json
+{
+  "status": "pending",
+  "claimed": false,
+  "expiresAt": 1707234600000
+}
+```
 
-## Use Cases
+### Response: Key Claimed
 
-### 1. Device Claiming Flow
+```json
+{
+  "status": "claimed",
+  "claimed": true,
+  "claimedBy": "homeassistant",
+  "claimedAt": 1707231000000
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status` | string | `"no_key"`, `"pending"`, or `"claimed"` |
+| `claimed` | boolean | Whether the key has been claimed |
+| `claimedBy` | string | User ID that claimed the key (when `claimed: true`) |
+| `claimedAt` | number | Claim timestamp in ms (when `claimed: true`) |
+| `expiresAt` | number | Expiration timestamp in ms (when `status: "pending"`) |
+
+---
+
+## Pairing Flow
 
 ```mermaid
 sequenceDiagram
     participant U as User
     participant T as Thermostat
-    participant API as API Server
-    participant DB as Dashboard
+    participant S as Server
 
-    U->>T: Settings → Get Entry Code
-    T->>API: POST /passphrase
-    API-->>T: {passphrase: "A3XR7M2"}
-    T-->>U: Display "A3XR7M2"
-    U->>DB: Enter code "A3XR7M2"
-    DB->>API: Claim device with key
-    API-->>DB: Device linked!
+    T->>S: GET /nest/passphrase
+    S-->>T: {value: "A3XR7M2", expires: 1707...}
+    T-->>U: Display "A3X-R7M2"
+
+    loop Poll every ~30s
+        T->>S: GET /nest/passphrase/status
+        S-->>T: {status: "pending", claimed: false}
+    end
+
+    U->>S: POST /api/register {code: "A3XR7M2", userId: "homeassistant"}
+    S-->>U: {success: true, serial: "09AA01AB12345678"}
+    Note over S: Server pushes user + structure buckets to device
+
+    T->>S: GET /nest/passphrase/status
+    S-->>T: {status: "claimed", claimed: true, claimedBy: "homeassistant"}
+    Note over T: Pairing screen dismissed
 ```
-
-### 2. Thermostat Display
-
-The thermostat shows the entry key on screen:
-
-```
-┌─────────────────────┐
-│   Entry Code        │
-│                     │
-│     A 3 X R 7 M 2   │
-│                     │
-│  Valid for 60 min   │
-└─────────────────────┘
-```
-
-## Server Implementation
-
-```javascript
-app.post('/passphrase', async (req, res) => {
-  const serial = extractSerialFromAuth(req);
-  
-  // Generate random 7-char code
-  const passphrase = generateSecureKey(7);
-  const expiresAt = Date.now() + (process.env.ENTRY_KEY_TTL_SECONDS || 3600) * 1000;
-  
-  // Store in database
-  await convex.mutation('users:generateEntryKey', {
-    key: passphrase,
-    serial,
-    expiresAt
-  });
-  
-  res.json({ passphrase, expires_at: new Date(expiresAt).toISOString() });
-});
-```
-
-## Security Considerations
-
-<Warning>
-  **Entry keys are temporary secrets.** Don't share them publicly or via insecure channels.
-</Warning>
-
-- Expires after 1 hour automatically
-- Single-use (marked as used after claiming)
-- Requires physical access to thermostat to view
-- Can be regenerated unlimited times
 
 ## Next Steps
 
-<Card title="Claiming Devices" href="/hosted/claiming-device">
-  Learn how users claim devices with entry keys
-</Card>
+<CardGroup cols={2}>
+  <Card title="POST /api/register" href="/api-reference/control/register">
+    Claim an entry key and register a device
+  </Card>
+  <Card title="POST /nest/transport" href="/api-reference/thermostat/transport-subscribe">
+    Subscribe endpoint (long-poll)
+  </Card>
+</CardGroup>
