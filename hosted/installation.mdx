@@ -65,39 +65,40 @@ Download the firmware installer for your operating system:
 
 <Tabs>
   <Tab title="Linux (AppImage)">
-    1. **Make the AppImage executable**:
-       ```bash
-       chmod +x NoLongerEvil-*.AppImage
-       ```
-
-    2. **Install dependencies**:
+    1. **Install dependencies**:
        ```bash
        sudo apt-get update
-       sudo apt-get install -y curl build-essential libusb-1.0-0-dev libudev-dev gcc pkg-config
+       sudo apt-get install -y unzip curl build-essential libusb-1.0-0-dev libudev-dev gcc pkg-config
        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
        sudo apt-get install -y nodejs
        sudo npm install ts-node typescript --save
        ```
 
-    3. **Run the AppImage**:
+    2. **Extract the downloaded .zip file**:
        ```bash
-       ./NoLongerEvil-*.AppImage
+       unzip nolongerevil-linux-appimage.zip
        ```
 
-    <Note>
-      AppImage files are self-contained and don't need extraction. You can also double-click the file in your file manager after making it executable.
-    </Note>
+    3. **Make the AppImage executable**:
+       ```bash
+       chmod +x nolongerevil-*.AppImage
+       ```
+
+    4. **Run the AppImage**:
+       ```bash
+       ./nolongerevil-*.AppImage
+       ```
   </Tab>
 
   <Tab title="macOS">
     1. **Extract the downloaded .zip file**:
-       - Double-click the .zip file in Finder
+       - Double-click `nolongerevil-macos-x64.zip` in Finder
 
     2. **Move the app to Applications** (optional but recommended):
-       - Drag NoLongerEvil.app to your Applications folder
+       - Drag NoLongerEvil Installer.app to your Applications folder
 
     3. **Open the app**:
-       - Double-click NoLongerEvil.app
+       - Double-click NoLongerEvil Installer.app
        - If macOS blocks it, right-click → Open, then click Open again
 
     <Note>
@@ -169,8 +170,8 @@ Download the firmware installer for your operating system:
 ## Step 3: Launch the Installer
 
 1. **Open the NoLongerEvil installer app**
-   - Linux: Run `./NoLongerEvil-*.AppImage` or double-click the AppImage file
-   - macOS: Double-click NoLongerEvil.app
+   - Linux: Run `./nolongerevil-*.AppImage` or double-click the AppImage file
+   - macOS: Double-click NoLongerEvil Installer.app
 
 2. **The installer GUI will open** - Follow the on-screen instructions in the installer
 
