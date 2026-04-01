@@ -53,11 +53,18 @@ description: 'Step-by-step instructions to flash firmware and set up your Nest t
 
 Download the firmware installer for your operating system:
 
-<CardGroup cols={2}>
-  <Card title="Download for macOS" icon="apple" href="https://github.com/codykociemba/NoLongerEvil-Thermostat/releases/download/v1.0.1/nolongerevil-macos-x64.zip">
+<CardGroup cols={3}>
+  <Card title="Download for macOS (Intel)" icon="apple" href="https://github.com/codykociemba/NoLongerEvil-Thermostat/releases/download/v1.0.1/nolongerevil-macos-x64.zip">
     **macOS (Intel x64)**
 
     Intel Macs
+
+    Click to download →
+  </Card>
+  <Card title="Download for macOS (Apple Silicon)" icon="apple" href="https://github.com/codykociemba/NoLongerEvil-Thermostat/releases/download/v1.0.1/nolongerevil-macos-arm64.zip">
+    **macOS (Apple Silicon)**
+
+    M1/M2/M3/M4 Macs
 
     Click to download →
   </Card>
@@ -69,12 +76,6 @@ Download the firmware installer for your operating system:
     Click to download →
   </Card>
 </CardGroup>
-
-<Note>
-  **Apple Silicon (M1/M2/M3) users:** The installer is Intel (x64) only.
-  Open it via Rosetta 2: right-click the app → Get Info → check "Open using Rosetta".
-  Alternatively, build from source (Node.js 18+).
-</Note>
 
 ---
 
@@ -121,7 +122,7 @@ Download the firmware installer for your operating system:
 
   <Tab title="macOS">
     1. **Extract the downloaded .zip file**:
-       - Double-click `nolongerevil-macos-x64.zip` in Finder
+       - Double-click the downloaded `.zip` in Finder (`nolongerevil-macos-x64.zip` or `nolongerevil-macos-arm64.zip`)
 
     2. **Open the app**:
        - Double-click NoLongerEvil Installer.app
