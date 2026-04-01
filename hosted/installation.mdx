@@ -7,30 +7,30 @@ description: 'Step-by-step instructions to flash firmware and set up your Nest t
   **Before you begin:**
 
   - Ensure you have a **Nest Generation 1 or Generation 2** thermostat ([check compatibility](/compatibility))
-  - Do NOT use this on a thermostat critical for heating/cooling (experimental software)
   - **Gen 1 requires device teardown** - only proceed if comfortable with electronics disassembly
+  - **Charge your Nest first** — If the device hasn't been used in a while, plug it into USB and let it charge for at least 30 minutes before flashing. A low battery can cause the flash to fail or the device to shut off mid-process.
 </Warning>
 
 ## What You'll Need
 
 <CardGroup cols={2}>
   <Card title="Compatible Device" icon="temperature-half">
-    Nest Generation 1 or 2 thermostat
+    Nest Generation 1 or 2 thermostat with at least 50% battery charge
 
     [Check compatibility →](/compatibility)
   </Card>
   <Card title="Computer" icon="laptop">
-    Linux or macOS
+    Linux or macOS only
 
-    ⚠️ Windows NOT supported (including WSL)
+    ❌ Windows is NOT supported — see below
   </Card>
   <Card title="USB Cable" icon="usb">
     Mini USB (Gen 1) or Micro USB (Gen 2)
 
     Must be data-capable, not charge-only
   </Card>
-  <Card title="For Gen 1 Only" icon="screwdriver-wrench">
-    Phillips screwdriver
+  <Card title="Phillips screwdriver" icon="screwdriver-wrench">
+    For Gen 1 Only
 
     Metal tweezers/conductive tool
   </Card>
@@ -40,24 +40,41 @@ description: 'Step-by-step instructions to flash firmware and set up your Nest t
 
 ## Step 1: Download Firmware Installer
 
+<Warning>
+  **Windows is not supported.**
+
+  The Nest thermostat only remains in DFU (flash) mode for a few seconds after USB connection.
+  Windows requires too long to install the USB bootloader driver, making it impossible to flash
+  in time. This is a hardware timing constraint — WSL2, virtual machines, and other workarounds
+  do not solve it.
+
+  **You must use macOS or Linux to flash your thermostat.**
+</Warning>
+
 Download the firmware installer for your operating system:
 
 <CardGroup cols={2}>
   <Card title="Download for macOS" icon="apple" href="https://github.com/codykociemba/NoLongerEvil-Thermostat/releases/download/v1.0.1/nolongerevil-macos-x64.zip">
-    **macOS (Universal)**
+    **macOS (Intel x64)**
 
-    Intel & Apple Silicon (M1/M2/M3/M4)
+    Intel Macs
 
-    Click to download
+    Click to download →
   </Card>
   <Card title="Download for Linux" icon="linux" href="https://github.com/codykociemba/NoLongerEvil-Thermostat/releases/download/v1.0.1/nolongerevil-linux-appimage.zip">
     **Linux (x64)**
 
     Ubuntu, Debian, Fedora, etc.
 
-    Click to download
+    Click to download →
   </Card>
 </CardGroup>
+
+<Note>
+  **Apple Silicon (M1/M2/M3) users:** The installer is Intel (x64) only.
+  Open it via Rosetta 2: right-click the app → Get Info → check "Open using Rosetta".
+  Alternatively, build from source (Node.js 18+).
+</Note>
 
 ---
 
@@ -71,7 +88,6 @@ Download the firmware installer for your operating system:
        sudo apt-get install -y unzip curl build-essential libusb-1.0-0-dev libudev-dev gcc pkg-config
        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
        sudo apt-get install -y nodejs
-       sudo npm install ts-node typescript --save
        ```
 
     2. **Extract the downloaded .zip file**:
@@ -84,25 +100,40 @@ Download the firmware installer for your operating system:
        chmod +x nolongerevil-*.AppImage
        ```
 
-    4. **Run the AppImage**:
+    4. **Add USB device permissions** (Optional, but recommended):
+       ```bash
+       echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="0451", MODE="0666"' | sudo tee /etc/udev/rules.d/99-omap.rules
+       sudo udevadm control --reload-rules
+       ```
+
+       If you skip this and hit a "permission denied" error later, come back and run these, then retry.
+
+    5. **Run the AppImage**:
        ```bash
        ./nolongerevil-*.AppImage
        ```
+
+    <Note>
+      **The installer GUI will open and walk you through the rest of the process.**
+      You can follow the on-screen wizard instead of reading the steps below.
+    </Note>
   </Tab>
 
   <Tab title="macOS">
     1. **Extract the downloaded .zip file**:
        - Double-click `nolongerevil-macos-x64.zip` in Finder
 
-    2. **Move the app to Applications** (optional but recommended):
-       - Drag NoLongerEvil Installer.app to your Applications folder
-
-    3. **Open the app**:
+    2. **Open the app**:
        - Double-click NoLongerEvil Installer.app
        - If macOS blocks it, right-click → Open, then click Open again
 
     <Note>
       **First time opening**: macOS may show a security warning. Go to System Preferences → Security & Privacy and click "Open Anyway" if needed.
+    </Note>
+
+    <Note>
+      **The installer GUI will open and walk you through the rest of the process.**
+      You can follow the on-screen wizard instead of reading the steps below.
     </Note>
   </Tab>
 </Tabs>
@@ -122,16 +153,11 @@ Download the firmware installer for your operating system:
       sudo apt-get install -y nodejs
 
       # Clone the repository
-      git clone -b open-source-prototype https://github.com/codykociemba/NoLongerEvil-Thermostat.git
-      cd NoLongerEvil-Thermostat
-
-      # Install typescript
-      sudo npm install ts-node typescript --save
+      git clone https://github.com/codykociemba/NoLongerEvil-Thermostat.git NoLongerEvil-Thermostat
 
       # Run the installer
-      cd firmware/installer
+      cd NoLongerEvil-Thermostat/firmware/installer
       npm install
-      export ELECTRON_DISABLE_SANDBOX=1
       npm run electron:dev
       ```
     </Tab>
@@ -146,14 +172,10 @@ Download the firmware installer for your operating system:
       brew link --overwrite node@20
 
       # Clone the repository
-      git clone -b open-source-prototype https://github.com/codykociemba/NoLongerEvil-Thermostat.git
-      cd NoLongerEvil-Thermostat
-
-      # Install dependencies
-      brew install libusb
+      git clone https://github.com/codykociemba/NoLongerEvil-Thermostat.git NoLongerEvil-Thermostat
 
       # Run the installer
-      cd firmware/installer
+      cd NoLongerEvil-Thermostat/firmware/installer
       npm install
       npm run electron:dev
       ```
@@ -167,33 +189,57 @@ Download the firmware installer for your operating system:
 
 ---
 
-## Step 3: Launch the Installer
+## Step 3: Enter DFU Mode
 
-1. **Open the NoLongerEvil installer app**
-   - Linux: Run `./nolongerevil-*.AppImage` or double-click the AppImage file
-   - macOS: Double-click NoLongerEvil Installer.app
+When you launch the installer, it will first run a system check and then ask you to select your device generation:
 
-2. **The installer GUI will open** - Follow the on-screen instructions in the installer
-
-3. **The installer will guide you through the process**, including:
-   - Selecting your device generation (Gen 1 or Gen 2)
-   - Entering DFU mode
-   - Flashing the firmware
-   - Setting up your device
+<Frame>
+  <img src="/images/firmware-installer-screenshots/1-systemcheck.png" alt="System Check — installer verifying prerequisites" />
+</Frame>
 
 <Note>
-  **USB Permissions**: You may be prompted to grant USB permissions:
-  - **macOS**: System Preferences → Security & Privacy → Allow USB access
-  - **Linux**: May need to run with `sudo` or add udev rules if you get permission errors
+  **System Check** — The installer verifies that required dependencies are present before proceeding.
+
+  **If it fails:**
+  - **libusb not found** — You skipped the dependency install step. Run `sudo apt-get install -y libusb-1.0-0-dev libudev-dev` (Linux) or `brew install libusb` (macOS), then relaunch the installer.
+  - **Permission error / USB access denied** — On Linux, add the udev rule from Step 2 and relaunch. On macOS, grant USB access in System Preferences → Security & Privacy.
+  - **On macOS: "app is damaged" or won't open** — Right-click → Open, then click Open in the dialog. Or go to System Preferences → Security & Privacy → General → click "Open Anyway".
 </Note>
 
-<Info>
-  The rest of this guide provides detailed manual instructions for each step. However, **the installer app will walk you through everything** - you can simply follow the GUI prompts instead of reading the steps below.
-</Info>
+<Frame>
+  <img src="/images/firmware-installer-screenshots/2-nestgenselection.png" alt="Select Generation — choose Gen 1 or Gen 2" />
+</Frame>
 
----
+<Note>
+  **Select Generation** — Choose whether your thermostat is a Generation 1 or Generation 2 device. If you're unsure, check the [compatibility page](/compatibility). Selecting the wrong generation will flash incorrect firmware — if this happens, simply re-run the installer and select the correct option.
+</Note>
 
-## Step 4: Enter DFU Mode
+<Accordion title="Custom Firmware (advanced users)" icon="code">
+  <Frame>
+    <img src="/images/firmware-installer-screenshots/2a-customfirmware.png" alt="Custom Firmware option for advanced users" />
+  </Frame>
+
+  <Note>
+    **Why use custom firmware?** There are a few reasons you might want to build your own:
+
+    - **Self-hosted server URL** — The default firmware points to the No Longer Evil hosted service. If you're self-hosting and want the thermostat to connect to your server out of the box — without needing the wizard — you can bake your server's URL directly into the firmware.
+    - **Custom root filesystem** — The firmware builder gives you access to the full root filesystem. You can add, remove, or modify scripts and files before the image is built, then flash that customized image to all of your Nest devices consistently.
+
+    To build your own firmware, clone the repo and use the Docker-based builder:
+    ```bash
+    git clone https://github.com/codykociemba/NoLongerEvil-Thermostat.git
+    cd NoLongerEvil-Thermostat/firmware/builder
+    ./docker-build.sh --generation both --enable-root-access --yes
+    ```
+
+    Copy the output into the installer before running it:
+    ```bash
+    cp firmware/builder/firmware/* firmware/installer/resources/firmware/
+    ```
+
+    Then point the installer at your custom firmware using the option shown above.
+  </Note>
+</Accordion>
 
 The process differs between Generation 1 and Generation 2 devices. **Choose the instructions for your device:**
 
@@ -203,14 +249,26 @@ The process differs between Generation 1 and Generation 2 devices. **Choose the 
 
     Follow these steps carefully:
 
-    1. **Boot device on backplate** - IMPORTANT: Connect your Nest to the wall backplate and let it fully boot to the home screen. This ensures the battery is charged and the device is ready.
-    2. **Remove from wall** - Once fully booted, remove the Nest from its back plate/wall mount
-    3. **Start the installer** - Make sure the `install.sh` script is running and waiting for the device
-    4. **Connect via USB** - Plug the Nest into your computer using a micro USB cable
+    1. **Attach to back plate** - Connect your Nest to the wall back plate and wait 2–3 seconds — this arms the DFU trigger
+    2. **Remove from back plate** - Remove the Nest from its back plate/wall mount
+    3. **Connect via USB immediately** - Plug the Nest into your computer using a micro USB cable
+    4. **Make sure the No Longer Evil installer app is open** and on the flashing screen, waiting for the device
     5. **Reboot the device** - Press and hold down on the display for 10-15 seconds until the device reboots
-    6. **DFU mode active** - Once it reboots, the device will enter DFU mode and the installer script will recognize it and begin flashing
+    6. **DFU mode active** - Once it reboots, the device will enter DFU mode and the installer will recognize it and begin flashing
+
+    > **The back plate step is required every time.** The back plate contact arms the DFU trigger in the bootloader — without it, the device boots normally instead of entering flash mode. If the installer doesn't detect the device: unplug USB, re-seat on the back plate, wait 2–3 seconds, remove, plug USB again. Repeat the full sequence each attempt.
 
     The firmware installer will automatically detect the device and flash the custom bootloader (x-load, u-boot) and kernel (uImage).
+
+    <Frame>
+      <img src="/images/firmware-installer-screenshots/3-flashing.png" alt="Firmware installing — installer progress screen" />
+    </Frame>
+
+    <Note>
+      **Flashing in progress** — The installer is writing the bootloader and kernel to the device. Do not unplug the USB cable until it completes.
+
+      **If it stalls or fails:** Unplug USB, repeat the full back plate sequence (attach → 2–3 sec → remove → plug USB), and try again. If the installer never detects the device, check your USB cable (must be data-capable, not charge-only) and try a different USB port.
+    </Note>
   </Tab>
 
   <Tab title="Generation 1 (Advanced)">
@@ -265,7 +323,7 @@ The process differs between Generation 1 and Generation 2 devices. **Choose the 
         Ensure:
         - Battery is reconnected
         - Screen is off
-        - The `./install.sh` script is running and waiting on your computer
+        - The **NoLongerEvil installer app is open** and waiting on your computer
         - Mini USB cable is ready but not yet connected
       </Step>
 
@@ -294,16 +352,96 @@ The process differs between Generation 1 and Generation 2 devices. **Choose the 
   </Tab>
 </Tabs>
 
+<Frame>
+  <img src="/images/firmware-installer-screenshots/4-flashed.png" alt="Installation Complete screen" />
+</Frame>
+
+<Note>
+  **Firmware flashed successfully** — The bootloader and kernel have been written to the device. Keep the USB cable connected — the device will now begin booting into the new firmware.
+
+  **If flashing failed mid-way:** Unplug and repeat the back plate sequence, then re-run the installer. A partial flash will not permanently damage the device — the DFU bootloader is always recoverable.
+</Note>
+
 ---
 
-## Step 5: Wait for Boot
+## Step 4: Wait for Boot
 
-After the firmware is flashed successfully, you should see the No Longer Evil logo on the device screen.
+Keep the device plugged in via USB and wait for it to complete its boot sequence — this may take 3–4 minutes. When fully booted, you should see the default Nest temperature screen.
 
-**Important:**
-- Keep the device plugged in via USB
-- Wait for the device to complete its boot sequence (this may take 3-4 minutes)
-- Do not disconnect or power off the device during this time
+**Do not disconnect or power off the device during this time.**
+
+---
+
+## Step 5: Complete the Wizard
+
+<Info>
+  **Once the device has booted, the installer wizard takes over automatically.**
+
+  The wizard will guide you through:
+  - Establishing an SSH connection to the thermostat
+  - Configuring SSH access (disable or change the default password)
+  - Discovering your Home Assistant instance (optional)
+  - Discovering and registering your Nest device
+
+  Follow the on-screen wizard prompts. Once the wizard finishes, continue to
+  Steps 6 and 7 below to register your account and link your device to the dashboard.
+</Info>
+
+<Frame>
+  <img src="/images/firmware-installer-screenshots/5-hostingselection.png" alt="Hosting Mode selection — choose Cloud Hosted or Self-Hosted" />
+</Frame>
+
+<Note>
+  **Choose hosting mode** — Select **Cloud Hosted** to use the No Longer Evil managed service (recommended for most users). Select **Self-Hosted** only if you have already set up your own NLE server. If you haven't set up a server yet and pick Self-Hosted, the wizard will not be able to connect — go back and choose Cloud Hosted, or set up your server first.
+</Note>
+
+<Frame>
+  <img src="/images/firmware-installer-screenshots/6-sshoption.png" alt="SSH Access configuration screen" />
+</Frame>
+
+<Note>
+  **SSH connection** — The wizard connects to the thermostat over SSH to configure it. The device must still be connected via USB and should have booted into the new firmware by now.
+
+  **If SSH fails:** Make sure the USB cable is still plugged in and the device has finished booting (when fully booted, you should see the default Nest temperature screen). If you see a connection timeout, unplug and replug the USB cable, wait 30 seconds, and click Retry.
+</Note>
+
+<Accordion title="SSH Password Setup (advanced)" icon="terminal">
+  <Note>
+    If you choose to keep SSH enabled, this screen lets you change the default SSH password from `nolongerevil` to a password of your choice. This is recommended if your thermostat is on a network you don't fully control. You can SSH into the device at any time with `ssh root@[THERMOSTAT-IP]`.
+  </Note>
+
+  <Frame>
+    <img src="/images/firmware-installer-screenshots/6a-sshpassword.png" alt="SSH Password fields for custom credentials" />
+  </Frame>
+</Accordion>
+
+<Frame>
+  <img src="/images/firmware-installer-screenshots/7-networkscan.png" alt="Finding Your Nest on the network" />
+</Frame>
+
+<Note>
+  **Finding your Nest on the network** — The wizard scans your local network to locate the thermostat after it connects to WiFi. The device needs to be on the same network as your computer.
+
+  **If the Nest isn't found:** Check the WiFi credentials on the Nest device itself and confirm it shows as connected. The scan may take up to 60 seconds — wait for it to complete before retrying. Alternatively, if you know the thermostat's IP address, you can enter it manually and click **Use**. If it still fails, see the [Troubleshooting guide](/hosted/troubleshooting).
+</Note>
+
+<Frame>
+  <img src="/images/firmware-installer-screenshots/8-provisioningcomplete.png" alt="Configuring Device — provisioning in progress" />
+</Frame>
+
+<Note>
+  **Configuring device** — The wizard is writing the server URL and account settings to the thermostat. Do not unplug or power off the device during this step.
+
+  **If provisioning fails:** Check your internet connection and try again. If it fails repeatedly, see the [Troubleshooting guide](/hosted/troubleshooting) for SSH-based manual configuration.
+</Note>
+
+<Frame>
+  <img src="/images/firmware-installer-screenshots/9-setupcomplete.png" alt="Setup Complete" />
+</Frame>
+
+<Note>
+  **Setup complete** — The thermostat is configured and connected. Continue to Steps 6 and 7 below to register your account and link the device to your dashboard.
+</Note>
 
 ---
 
@@ -346,41 +484,9 @@ Your Nest Thermostat is now running No Longer Evil and connected to your account
 
 ---
 
-## What Gets Flashed
+## Having trouble?
 
-The firmware installation process installs three components:
-
-1. **x-load.bin** - First-stage bootloader (X-Loader for OMAP)
-2. **u-boot.bin** - Second-stage bootloader (Das U-Boot) loaded at address 0x80100000
-3. **uImage** - Linux kernel image loaded at address 0x80A00000
-
-After flashing, the device jumps to execution at 0x80100000 (u-boot).
-
----
-
-## Something Went Wrong?
-
-<AccordionGroup>
-  <Accordion title="Device won't enter DFU mode" icon="usb">
-    See [DFU Mode Troubleshooting](/hosted/troubleshooting#dfu-mode-issues)
-  </Accordion>
-
-  <Accordion title="Firmware installer doesn't detect device" icon="computer">
-    See [Device Detection Issues](/hosted/troubleshooting#device-detection)
-  </Accordion>
-
-  <Accordion title="Thermostat won't boot after flashing" icon="power-off">
-    See [Boot Issues](/hosted/troubleshooting#boot-issues)
-  </Accordion>
-
-  <Accordion title="Entry code doesn't work" icon="key">
-    See [Entry Code Issues](/hosted/troubleshooting#entry-code-issues)
-  </Accordion>
-
-  <Accordion title="Device won't connect to WiFi" icon="wifi">
-    See [Network Issues](/hosted/troubleshooting#network-issues)
-  </Accordion>
-</AccordionGroup>
+See the [Troubleshooting guide →](/hosted/troubleshooting)
 
 ---
 

@@ -1,0 +1,24 @@
+# Claude Code & AI tooling
+.claude/
+*.claude
+claude.md
+CLAUDE.md
+.claudeignore
+
+# Internal planning & working docs
+docs/
+
+# Environment & secrets
+.env
+.env.local
+.env*.local
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

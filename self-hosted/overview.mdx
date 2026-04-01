@@ -3,10 +3,6 @@ title: Self-Hosted Overview
 description: 'Run your own No Longer Evil infrastructure for complete control'
 ---
 
-<Warning>
-  **Work in Progress**: The self-hosted installation is currently a work in progress and may or may not function correctly. For a stable, production-ready experience, we recommend using the [hosted service](/hosted/overview) instead.
-</Warning>
-
 ## What is Self-Hosting?
 
 Self-hosting means running your own No Longer Evil infrastructure on your own server. Your thermostat connects to **your server**, not the hosted service at nolongerevil.com.
@@ -17,28 +13,23 @@ Self-hosting means running your own No Longer Evil infrastructure on your own se
 
 ## How It Works
 
-Self-hosting No Longer Evil involves running your own infrastructure stack instead of relying on the hosted service:
-
 <Steps>
-  <Step title="Run the Installer">
-    Clone the repository and run `install.sh`, which sets up firmware flashing tools and guides you through server configuration.
+  <Step title="Set Up Your NLE Server">
+    Pull and run the pre-built Docker image (`ghcr.io/codykociemba/nolongerevil-selfhosted:latest`) on any always-on machine — or install the Home Assistant add-on if you're on HAOS.
   </Step>
   <Step title="Flash Your Thermostat">
-    Use the firmware flashing tools to flash custom firmware to your Nest Gen 1 or Gen 2 thermostat via USB. The firmware redirects all traffic from Google servers to **your server**.
+    Run the GUI installer on macOS or Linux to flash custom firmware to your Nest Gen 1 or Gen 2 thermostat via USB. The firmware redirects all thermostat traffic from Google's servers to **your server**.
   </Step>
-  <Step title="Start your Docker container">
-    Using the `open-soure-prototype` branch, copy the `docker-compose.yml.example` to `docker-compose.yml` and modify for your environment. Then start the server container.
+  <Step title="Select Self-Hosted in the Wizard">
+    When the installer wizard asks for a hosting mode, choose **Self-Hosted** and enter your server address. The wizard handles SSH configuration and device registration automatically.
   </Step>
   <Step title="Thermostat Connects to Your Server">
-    Once flashed, your thermostat connects to your self-hosted API server instead of Google's servers. All communication stays within your infrastructure.
-  </Step>
-  <Step title="Control Your Thermostat">
-    Access your thermostat through your Home Assistant (via MQTT), or directly through the API.
+    Once configured, your thermostat connects to your self-hosted NLE server instead of Google's servers. All communication stays within your infrastructure.
   </Step>
 </Steps>
 
 <Note>
-  **Key Difference from Hosted**: You're responsible for running the API server. The hosted service runs this and a frontend for you.
+  **Key Difference from Hosted**: You're responsible for running the NLE server. The hosted service runs this for you.
 </Note>
 
 ## What You'll Need
@@ -53,16 +44,10 @@ Self-hosting No Longer Evil involves running your own infrastructure stack inste
     [Check compatibility →](/compatibility)
   </Card>
   <Card title="Technical Skills" icon="code">
-    Command line, Docker, networking, and troubleshooting
+    Command line, Docker, and basic networking
   </Card>
   <Card title="Computer for Flashing" icon="laptop">
-    Linux or macOS (Windows/WSL not supported)
-  </Card>
-  <Card title="Time Commitment" icon="clock">
-    2-4 hours for initial setup + ongoing maintenance
-  </Card>
-  <Card title="Networking Knowledge" icon="network-wired">
-    Port forwarding, DNS, SSL/TLS certificates (for remote access)
+    Linux or macOS (Windows not supported)
   </Card>
 </CardGroup>
 
@@ -73,50 +58,20 @@ Self-hosting No Longer Evil involves running your own infrastructure stack inste
 When self-hosting, you're responsible for running and maintaining:
 
 <CardGroup cols={2}>
-  <Card title="API Server" icon="server">
-    Handles thermostat communication
+  <Card title="API Server (Port 8000)" icon="server">
+    Handles thermostat device communication
 
-    Replicates Google's Nest API
+    Pre-built Docker image: `ghcr.io/codykociemba/nolongerevil-selfhosted:latest`
   </Card>
-  <Card title="Control API" icon="tower-broadcast">
-    Provides control interface
-
-    For dashboards and automation
+  <Card title="Control API / Dashboard (Port 8082)" icon="tower-broadcast">
+    Web interface for device management
   </Card>
-  <Card title="MQTT" icon="rss">
-    Stores device state
-
-    Configuration and logs
+  <Card title="MQTT (Optional)" icon="rss">
+    Publishes climate entities to Home Assistant via MQTT discovery
   </Card>
 </CardGroup>
 
----
-
-## Self-Hosted vs Hosted Service
-
-<AccordionGroup>
-  <Accordion title="When to Choose Self-Hosted" icon="server">
-    **Choose self-hosting if you:**
-    - Want complete data ownership and privacy
-    - Need the system to run independently of any external service
-    - Want to customize or extend the functionality
-    - Are comfortable with server administration and troubleshooting
-    - Want to learn how the system works internally
-    - Need local-only network operation
-  </Accordion>
-
-  <Accordion title="When to Choose Hosted Service" icon="cloud">
-    **Choose the hosted service if you:**
-    - Want a plug-and-play solution with no server setup
-    - Don't want to manage infrastructure and updates
-    - Need something that "just works" with minimal maintenance
-    - Don't have 24/7 server hardware available
-    - Are not comfortable with command line and networking
-    - Want automatic updates and improvements
-
-    [Learn about hosted service →](/hosted/overview)
-  </Accordion>
-</AccordionGroup>
+Not sure if self-hosting is right for you? See [Choose Your Path →](/choose-your-path)
 
 ---
 

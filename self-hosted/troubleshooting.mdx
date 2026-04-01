@@ -18,13 +18,13 @@ description: 'Solutions to common issues when self-hosting No Longer Evil'
 
     2. **View container logs**:
        ```bash
-       docker logs <container-name>
+       docker logs nolongerevil-server
        ```
 
     3. **Check for port conflicts**:
        ```bash
-       sudo lsof -i :443  # Check if port 443 is in use
-       sudo lsof -i :8081 # Check if port 8081 is in use
+       sudo lsof -i :8000  # Check if port 8000 is in use
+       sudo lsof -i :8082  # Check if port 8082 is in use
        ```
 
     4. **Restart Docker**:
@@ -49,14 +49,6 @@ description: 'Solutions to common issues when self-hosting No Longer Evil'
     brew install libusb pkg-config
     ```
   </Accordion>
-
-  <Accordion title="install.sh: Permission denied" icon="lock">
-    **Solution**: Make the script executable
-    ```bash
-    chmod +x install.sh
-    ./install.sh
-    ```
-  </Accordion>
 </AccordionGroup>
 
 ---
@@ -66,11 +58,10 @@ description: 'Solutions to common issues when self-hosting No Longer Evil'
 <AccordionGroup>
   <Accordion title="Device won't enter DFU mode (Gen 2)" icon="usb">
     **Try these steps in order**:
-    1. **Boot device on backplate first** - Connect to wall mount and let it fully boot to home screen
-    2. **Remove from wall** - Once booted, remove from backplate
-    3. **Connect USB** - Use data-capable cable (not charge-only)
-    4. **Charge battery** - Ensure >50% battery
-    5. **Reboot** - Hold display for 10-15 seconds
+    1. **Back plate sequence first** — Attach to wall mount, wait 2–3 seconds, then remove. The back plate contact arms DFU mode.
+    2. **Connect USB immediately after removing from back plate** — Use a data-capable cable (not charge-only)
+    3. **Charge battery** — Ensure >50% battery
+    4. **Reboot** — Hold display for 10-15 seconds
 
     See [DFU Mode Troubleshooting](/hosted/troubleshooting#dfu-mode-issues) for more details
   </Accordion>
@@ -91,12 +82,12 @@ description: 'Solutions to common issues when self-hosting No Longer Evil'
 
   <Accordion title="Installer doesn't detect device" icon="computer">
     **Linux**:
-    1. **Check USB permissions**:
+    1. **Check USB permissions** — run the installer app with sudo:
        ```bash
-       sudo ./install.sh
+       sudo ./NoLongerEvil-*.AppImage
        ```
 
-    2. **Add udev rules**:
+    2. **Add udev rules** for a permanent fix:
        ```bash
        echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="0451", MODE="0666"' | sudo tee /etc/udev/rules.d/99-omap.rules
        sudo udevadm control --reload-rules
@@ -108,6 +99,8 @@ description: 'Solutions to common issues when self-hosting No Longer Evil'
     **Both**:
     - Try different USB cable (must be data-capable)
     - Try different USB port
+
+    **Back plate sequence reminder**: Attach to back plate (2–3 sec) → remove → plug USB. This must be repeated for each flash attempt. If you plugged USB without the back plate step, the device booted normally instead of entering DFU mode.
   </Accordion>
 </AccordionGroup>
 
@@ -115,24 +108,43 @@ description: 'Solutions to common issues when self-hosting No Longer Evil'
 
 ## Server Connection Issues
 
+<Note>
+  The NLE server is a standalone service, separate from the firmware flashing tool.
+  It runs as a Docker container using the image `ghcr.io/codykociemba/nolongerevil-selfhosted:latest`,
+  as a Python service, or as a Home Assistant add-on. See the [self-hosted installation guide](/self-hosted/installation)
+  for server setup instructions.
+</Note>
+
+<Warning>
+  **Home Assistant Add-on users:** The add-on's external device port is **9543** (not 8000).
+  The thermostat must be configured to reach `http://[HA-IP]:9543`.
+
+  If your thermostat isn't connecting: verify `api_origin` in the add-on's Configuration tab
+  is set to an IP address, not `homeassistant.local`.
+
+  The control dashboard (port 8082) is only accessible via the HA sidebar (Ingress) by default.
+  To expose it directly, go to Settings → Add-ons → No Longer Evil → Configuration → Network
+  and assign a host port to container port 8082.
+</Warning>
+
 <AccordionGroup>
   <Accordion title="Thermostat can't connect to server" icon="plug-circle-xmark">
     **Check**:
     1. **API server is running**:
        ```bash
-       docker ps | grep api
-       curl http://localhost:443  # Should respond
+       docker ps | grep nolongerevil
+       curl http://localhost:8082/health  # Should respond
        ```
 
     2. **Firewall allows connections**:
        ```bash
-       sudo ufw allow 443  # Linux
-       sudo ufw allow 8081
+       sudo ufw allow 8000  # Linux
+       sudo ufw allow 8082
        ```
 
     3. **Port forwarding configured** (if remote access):
        - Check router settings
-       - Verify ports 443 and 8081 are forwarded to your server
+       - Verify ports 8000 and 8082 are forwarded to your server
 
     4. **DNS resolves correctly** (if using domain):
        ```bash
@@ -142,6 +154,57 @@ description: 'Solutions to common issues when self-hosting No Longer Evil'
     5. **Thermostat can reach server**:
        - Check WiFi connection on thermostat
        - Verify thermostat is on same network (for local-only setup)
+  </Accordion>
+
+  <Accordion title="Thermostat not connecting to self-hosted server" icon="network-wired">
+    **Symptoms**: Thermostat shows No Longer Evil firmware but connects to cloud, or shows "No Server"
+
+    **Method 1 — NLEAPI (easier, web-based):**
+
+    The thermostat exposes a configuration API at port 8080. Navigate to:
+    ```
+    http://[THERMOSTAT-IP]:8080/cgi-bin/api/settings
+    ```
+
+    Find `cloudregisterurl` in the settings and update it to your server's `/entry` endpoint:
+    - Standalone Docker: `http://[SERVER-IP]:8000/entry`
+    - HA Add-on: `http://[HA-IP]:9543/entry`
+
+    You can find the exact URL by querying your server's info endpoint:
+    ```
+    http://[SERVER-IP]:[PORT]/info
+    ```
+
+    > **Password protection:** If the thermostat has been powered on for more than 30 minutes,
+    > the NLEAPI is protected by a password. To find the password, SSH into the thermostat and
+    > read `/etc/nestlabs/apikey.txt`:
+    > ```bash
+    > ssh root@[THERMOSTAT-IP]   # default password: nolongerevil
+    > cat /etc/nestlabs/apikey.txt
+    > ```
+    > Use this value as the password when the NLEAPI prompts for authentication.
+
+    After saving, reboot the thermostat.
+
+    ---
+
+    **Method 2 — SSH / direct file edit (fallback):**
+
+    ```bash
+    ssh root@[THERMOSTAT-IP]
+    # Default password: nolongerevil
+    vi /etc/nestlabs/client.config
+    ```
+
+    Find the `cloudregisterurl` entry and update the value to your server's `/entry` endpoint
+    (same values as Method 1 above).
+
+    Save with `:wq`, then reboot:
+    ```bash
+    reboot
+    ```
+
+    After reboot: Settings (gear icon) → Nest App → Get Entry Key (only needed if `REQUIRE_DEVICE_PAIRING=true`).
   </Accordion>
 
   <Accordion title="SSL/TLS certificate errors" icon="shield-xmark">
@@ -156,7 +219,7 @@ description: 'Solutions to common issues when self-hosting No Longer Evil'
     sudo certbot certonly --standalone -d your-domain.com
     ```
 
-    Then configure your server to use the certificates in `/etc/letsencrypt/live/your-domain.com/`
+    Then configure `CERT_DIR` in your Docker environment to point to the certificates in `/etc/letsencrypt/live/your-domain.com/`
   </Accordion>
 </AccordionGroup>
 
@@ -168,7 +231,7 @@ description: 'Solutions to common issues when self-hosting No Longer Evil'
   <Accordion title="Containers keep restarting" icon="rotate">
     **View logs to see why**:
     ```bash
-    docker logs <container-name>
+    docker logs nolongerevil-server
     ```
 
     **Common causes**:
@@ -189,11 +252,11 @@ description: 'Solutions to common issues when self-hosting No Longer Evil'
     docker ps
     ```
 
-    Look for `0.0.0.0:443->443/tcp` and `0.0.0.0:8081->8081/tcp`
+    Look for `0.0.0.0:8000->8000/tcp` and `0.0.0.0:8082->8082/tcp`
 
     **If ports aren't mapped**, recreate containers with proper port mapping:
     ```bash
-    docker run -p 443:443 -p 8081:8081 ...
+    docker run -p 8000:8000 -p 8082:8082 ...
     ```
   </Accordion>
 
@@ -223,14 +286,14 @@ description: 'Solutions to common issues when self-hosting No Longer Evil'
 
     1. **Port forwarding configured**:
        - Log into your router
-       - Forward ports 443, 8081 to your server's local IP
+       - Forward ports 8000, 8082 to your server's local IP
        - Verify forwards are active
 
     2. **Firewall allows traffic**:
        ```bash
        sudo ufw status
-       sudo ufw allow 443
-       sudo ufw allow 8081
+       sudo ufw allow 8000
+       sudo ufw allow 8082
        ```
 
     3. **Public IP correct**:
@@ -243,7 +306,7 @@ description: 'Solutions to common issues when self-hosting No Longer Evil'
        - Check DDNS client is running and updating
 
     5. **ISP not blocking ports**:
-       - Some ISPs block port 443/80
+       - Some ISPs block common ports
        - Try alternative ports or contact ISP
   </Accordion>
 
@@ -265,8 +328,8 @@ description: 'Solutions to common issues when self-hosting No Longer Evil'
 
     **Common issues**:
     - Certificate not installed correctly
-    - Server not configured for HTTPS
-    - Port 443 not open
+    - Server not configured for HTTPS (`CERT_DIR` env var not set)
+    - Port 8000 not open
     - Domain doesn't match certificate
   </Accordion>
 </AccordionGroup>
@@ -286,8 +349,7 @@ description: 'Solutions to common issues when self-hosting No Longer Evil'
 
     **Solutions**:
     - Allocate more resources to Docker
-    - Optimize database queries
-    - Reduce logging verbosity
+    - Enable `DEBUG_LOGGING=false` to reduce log overhead
     - Use faster storage (SSD vs HDD)
   </Accordion>
 
@@ -297,14 +359,9 @@ description: 'Solutions to common issues when self-hosting No Longer Evil'
     docker stats
     ```
 
-    **Limit container memory**:
+    **Restart container to free memory**:
     ```bash
-    docker update --memory="512m" <container-id>
-    ```
-
-    **Restart containers to free memory**:
-    ```bash
-    docker restart $(docker ps -q)
+    docker restart nolongerevil-server
     ```
   </Accordion>
 </AccordionGroup>
@@ -323,7 +380,7 @@ description: 'Solutions to common issues when self-hosting No Longer Evil'
   <Card title="Check Logs" icon="file-lines">
     Always check Docker logs first:
     ```
-    docker logs <container-name>
+    docker logs nolongerevil-server
     ```
   </Card>
   <Card title="Hosted Service" icon="cloud" href="/hosted/overview">

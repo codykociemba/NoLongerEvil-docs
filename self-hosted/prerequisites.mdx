@@ -33,41 +33,41 @@ You need a machine that can run 24/7 to host the No Longer Evil infrastructure:
 
 <AccordionGroup>
   <Accordion title="Docker" icon="docker">
-    **Required** - Runs containers for Convex backend and API server
+    **Required** — Runs the NLE server container (`ghcr.io/codykociemba/nolongerevil-selfhosted:latest`)
 
     - Linux: `sudo apt-get install docker.io`
     - macOS: Install Docker Desktop
 
     Check: `docker --version`
   </Accordion>
+</AccordionGroup>
 
-  <Accordion title="Build Tools & libusb" icon="hammer">
-    **Required** - Compiles firmware flasher
+### On Your Flashing Computer
 
-    Linux:
+The flashing computer is the macOS or Linux machine you use to run the GUI installer and flash the thermostat. This is often a different machine from your server.
+
+- **OS**: Linux or macOS (Windows/WSL NOT supported)
+- **USB Port**: For connecting thermostat
+- **USB Cable**: Mini USB (Gen 1) or Micro USB (Gen 2), data-capable
+
+<AccordionGroup>
+  <Accordion title="Build Tools & libusb (Linux only)" icon="hammer">
+    **Required on your flashing computer if running Linux** — needed by the GUI installer to communicate with the thermostat over USB.
+
     ```bash
-    sudo apt-get install build-essential libusb-1.0-0-dev gcc pkg-config
+    sudo apt-get install build-essential libusb-1.0-0-dev libudev-dev gcc pkg-config
     ```
 
-    macOS:
-    ```bash
-    brew install libusb pkg-config
-    ```
+    macOS: libusb is bundled with the installer — no separate installation needed.
   </Accordion>
 
-  <Accordion title="Node.js & npm" icon="node-js">
-    **Optional** - Only if running your own frontend
+  <Accordion title="Node.js & npm (build from source only)" icon="node-js">
+    **Only needed if building the GUI installer from source** — for developers contributing to the thermostat installer codebase or if the pre-built binary doesn't work on your system.
 
     - Version 18 or higher
     - Check: `node --version`
   </Accordion>
 </AccordionGroup>
-
-### On Your Flashing Computer
-
-- **OS**: Linux or macOS (Windows/WSL NOT supported)
-- **USB Port**: For connecting thermostat
-- **USB Cable**: Mini USB (Gen 1) or Micro USB (Gen 2)
 
 ---
 
@@ -77,7 +77,7 @@ You should be comfortable with:
 
 - **Command line** navigation and commands
 - **Docker** basics (containers, logs, troubleshooting)
-- **Networking** (port forwarding, firewalls, DNS)
+- **Networking** (local IPs, port forwarding if needed)
 - **Linux/Unix** basics (permissions, services, logs)
 
 ---
@@ -85,9 +85,8 @@ You should be comfortable with:
 ## Network Setup
 
 ### Required
-- Stable internet connection
-- Router access (for port forwarding if needed)
-- Static local IP or DHCP reservation for server
+- Stable local network
+- Static local IP or DHCP reservation for server (so the thermostat can always reach it)
 
 ### For Remote Access (Optional)
 - Public IP or DDNS service

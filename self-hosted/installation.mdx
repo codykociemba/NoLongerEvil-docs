@@ -4,10 +4,6 @@ description: 'Complete guide to setting up your own No Longer Evil infrastructur
 ---
 
 <Warning>
-  **Work in Progress**: The self-hosted installation is currently a work in progress and may or may not function correctly. For a stable, production-ready experience, we recommend using the [hosted service](/hosted/overview) instead.
-</Warning>
-
-<Warning>
   **Before you begin:**
 
   - Ensure you have a **Nest Generation 1 or Generation 2** thermostat ([check compatibility](/compatibility))
@@ -18,340 +14,378 @@ description: 'Complete guide to setting up your own No Longer Evil infrastructur
 
 ## Overview
 
-The self-hosted installation sets up:
-1. **Firmware flashing tools** - To flash your Nest thermostat
-2. **API Server** - Backend server for thermostat communication (runs in Docker container)
+The self-hosted path has two parts:
+1. **Set up your NLE server** — pull and run the pre-built Docker image on any always-on machine
+2. **Flash your thermostat** — run the same GUI installer as the hosted path, then select "Self-Hosted" in the wizard
 
 ---
 
-## Step 1: Clone the Repository
+## Part 1: Set Up Your NLE Server
 
-Clone the `open-source-prototype` branch:
+Choose the deployment option that matches your setup:
+
+### Option A — Home Assistant Add-on
+
+<Warning>
+  **Requirements:**
+  - **Home Assistant OS** — does NOT work with Home Assistant Container (bare Docker HA)
+  - **Mosquitto broker add-on** must be installed for MQTT/climate entity discovery
+</Warning>
+
+**Step-by-step:**
+
+1. **Add the repository to Home Assistant:**
+
+   <a href="https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fcodykociemba%2FNoLongerEvil-HomeAssistant" target="_blank">
+     <img src="https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg" alt="Add Repository" noZoom />
+   </a>
+
+   Or manually: Settings → Add-ons → Add-on Store → three-dot menu → Repositories → paste:
+   ```
+   https://github.com/codykociemba/NoLongerEvil-HomeAssistant
+   ```
+
+2. **Find NoLongerEvil HomeAssistant in the Add-on Store and click** <span style={{display:'inline-flex', alignItems:'center', backgroundColor:'#009ac7', color:'#fff', fontWeight:'600', fontSize:'0.8rem', height:'38px', padding:'0 16px', borderRadius:'9999px'}}>Install</span>
+
+3. **⚠️ Before starting: configure `api_origin` first** — Go to the **Configuration** tab of the add-on. Change `api_origin` from the default to your Home Assistant machine's actual LAN IP address (e.g. `http://192.168.1.100:9543` — replace `192.168.1.100` with your HA machine's IP)
+
+<Frame>
+  <img src="/images/firmware-installer-screenshots/home-assistant-config.png" alt="Home Assistant add-on Configuration tab showing api_origin field" />
+</Frame>
+
+<Warning>
+  **`api_origin` must be set before starting.**
+
+  The default value (`http://homeassistant.local:9543`) uses mDNS, which Nest devices cannot reliably resolve. If you start the add-on before setting a real IP, the thermostat will fail to connect.
+
+  **Do not skip this step.**
+</Warning>
+
+4. Click <span style={{display:'inline-flex', alignItems:'center', backgroundColor:'#009ac7', color:'#fff', fontWeight:'600', fontSize:'0.8rem', height:'38px', padding:'0 16px', borderRadius:'9999px'}}>Save</span>, then go to the **Info** tab at the top and click <span style={{color:'#18bcf2', fontWeight:'600'}}>Start</span>
+
+5. Enable **Start on boot** and **Watchdog** (auto-restart on crash)
+
+6. (Optional) Enable **Auto update** and **Show in sidebar** for easy dashboard access
+
+Your NLE server is now running. Continue to [Part 2](#part-2:-flash-and-configure-via-gui-installer) below to flash your thermostat and connect it to your server.
+
+<Accordion title="Network ports & dashboard access (Optional)" icon="network-wired">
+  | Port | Purpose |
+  |---|---|
+  | `9543` (host) → `8000` (container) | Nest device communication — this is what you enter as the server address |
+  | `8082` | Control API + Web UI (Ingress/sidebar only by default) |
+
+  You do not need to configure these ports for a standard local setup — the add-on handles this automatically.
+
+  To expose the dashboard directly (e.g., `http://[HA-IP]:8082`): Settings → Add-ons → No Longer Evil → Configuration → Network → assign a host port to container port `8082`.
+
+  <Warning>
+    **Security risk:** Exposing port 8082 directly gives unauthenticated access to the NLE dashboard. If your Home Assistant instance is accessible from outside your network, do not expose this port unless you fully understand the risks and have additional access controls in place.
+  </Warning>
+</Accordion>
+
+**When the GUI installer runs for an HA add-on user:**
+- The installer scans the LAN for a running NLE server via the `/info` endpoint
+- It will detect the add-on at port `9543`
+- Select **Self-Hosted** in the wizard and confirm the detected address (`http://[HA-IP]:9543`)
+
+---
+
+### Option B — Standalone Docker
 
 ```bash
-git clone -b open-source-prototype https://github.com/codykociemba/NoLongerEvil-Thermostat.git
-cd NoLongerEvil-Thermostat
+docker run -d \
+  -p 8000:8000 \
+  -p 8082:8082 \
+  --name nolongerevil-server \
+  -e API_ORIGIN=http://YOUR_LAN_IP:8000 \
+  -v nolongerevil-data:/data \
+  ghcr.io/codykociemba/nolongerevil-selfhosted:latest
 ```
 
----
+<Warning>
+  **`API_ORIGIN` must be your machine's LAN IP** (e.g., `http://192.168.1.50:8000`), not `localhost` or a hostname. The thermostat connects back to this address. The GUI installer reads it from the server's `/info` endpoint during setup.
+</Warning>
 
-## Step 2: Install Dependencies
+Verify it's running:
+```bash
+docker ps | grep nolongerevil
+curl http://localhost:8082/health
+```
 
-<Tabs>
-  <Tab title="Ubuntu/Debian">
-    ```bash
-    sudo apt-get update
-    sudo apt-get install build-essential libusb-1.0-0-dev gcc pkg-config docker.io nodejs npm
-    ```
-
-    **Start Docker:**
-    ```bash
-    sudo systemctl start docker
-    sudo systemctl enable docker
-    ```
-
-    **Add your user to docker group** (optional, to run docker without sudo):
-    ```bash
-    sudo usermod -aG docker $USER
-    ```
-    Log out and log back in for this to take effect.
-  </Tab>
-
-  <Tab title="macOS">
-    First, install Homebrew if you don't have it:
-    ```bash
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    ```
-
-    Then install dependencies:
-    ```bash
-    brew install libusb pkg-config docker nodejs
-    ```
-
-    <Note>
-      **Docker Desktop for Mac**: You'll also need to install Docker Desktop from [docker.com](https://www.docker.com/products/docker-desktop). Make sure it's running before proceeding.
-    </Note>
-  </Tab>
-</Tabs>
+Your NLE server is now running. Continue to [Part 2](#part-2:-flash-and-configure-via-gui-installer) below to flash your thermostat.
 
 ---
 
-## Step 3: Run the Installer
-
-The installer will:
-- Build firmware flashing tools
-- Set up Docker container for the API server
-- Guide you through flashing your thermostat
-
-Run the installer:
+### Option C — Docker Compose
 
 ```bash
-chmod +x install.sh
-./install.sh
+git clone https://github.com/codykociemba/NoLongerEvil-SelfHosted.git
+cd NoLongerEvil-SelfHosted
 ```
 
-<Note>
-  The installer is interactive and will prompt you for configuration options. Follow the on-screen instructions carefully.
-</Note>
-
----
-
-## Step 4: Flash Your Thermostat
-
-The installer will guide you through flashing your thermostat. **The process differs for Gen 1 and Gen 2 - choose your device below:**
-
-<Tabs>
-  <Tab title="Generation 2 (Easy)">
-    ### Gen 2: Simple USB Method
-
-    Follow these steps carefully:
-
-    1. **Boot device on backplate** - Connect your Nest to the wall backplate and let it fully boot to the home screen
-    2. **Remove from wall** - Once fully booted, remove the Nest from its backplate
-    3. **Connect via USB** - Plug the Nest into your computer using a micro USB cable
-    4. **Reboot the device** - Press and hold down on the display for 10-15 seconds until the device reboots
-    5. **DFU mode active** - The installer will detect the device and begin flashing
-
-    The firmware installer will automatically flash the custom bootloader (x-load, u-boot) and kernel (uImage).
-  </Tab>
-
-  <Tab title="Generation 1 (Advanced)">
-    ### Gen 1: Teardown & Contact Bridge Method
-
-    <Warning>
-      **Gen 1 requires physical disassembly.** This process involves opening the device and manually bridging internal contacts. Only proceed if you're comfortable with electronics teardown.
-
-      **Credit:** Gen 1 DFU mode instructions adapted from [guyman70718's cuckoo_loader_gen1 guide](https://github.com/guyman70718/cuckoo_loader_gen1).
-    </Warning>
-
-    #### Tools Needed:
-    - Phillips screwdriver or prying tool
-    - Metal tweezers or similar conductive object
-    - Mini USB cable
-    - Non-conductive object for battery removal
-
-    #### Teardown Steps:
-
-    <Steps>
-      <Step title="Begin Disassembly">
-        Follow the [SparkFun Nest Thermostat Teardown Guide](https://learn.sparkfun.com/tutorials/nest-thermostat-teardown-/all) to open your Gen 1 thermostat.
-
-        You need to access the internal circuit board.
-
-        <Frame>
-          <img src="/public/nest-gen1-teardown-step1.jpg" alt="Gen 1 Nest internal components exposed" />
-        </Frame>
-      </Step>
-
-      <Step title="Disconnect Battery">
-        Unplug the battery by inserting your finger or a **NON-CONDUCTIVE object** underneath the battery wires. It lifts directly up.
-
-        **Important:** Do not use metal tools for this step.
-      </Step>
-
-      <Step title="Remove Metal Shield">
-        Detach the metal shield from the corner to expose the circuit board components and contact points.
-
-        <Frame>
-          <img src="/public/nest-gen1-teardown-step2.png" alt="Metal shield removal" />
-        </Frame>
-      </Step>
-
-      <Step title="Reconnect Battery">
-        Reconnect the battery while keeping the shield removed.
-
-        **Note:** The device will not boot without a battery connected.
-      </Step>
-
-      <Step title="Prepare for DFU Mode">
-        Ensure:
-        - Battery is reconnected
-        - Screen is off
-        - The installer is waiting for the device
-        - Mini USB cable is ready but not yet connected
-      </Step>
-
-      <Step title="Bridge Contacts & Connect USB">
-        Using metal tweezers or a conductive tool, **bridge the black and yellow resistor contacts** shown in the image below:
-
-        <Frame>
-          <img src="/public/nest-gen1-teardown-step3.png" alt="Contact bridging points for DFU mode" />
-        </Frame>
-
-        While holding the contacts bridged, connect the mini USB cable to the device.
-
-        The thermostat should boot into DFU mode and the installer will detect it.
-      </Step>
-
-      <Step title="Wait for Flash">
-        Once detected, the installer will automatically flash the custom bootloader and kernel.
-
-        Keep the device connected and don't disconnect until flashing completes.
-      </Step>
-    </Steps>
-
-    <Info>
-      **After successful flashing**, you can reassemble your Gen 1 thermostat by reversing the teardown steps. The device should boot normally with the new firmware.
-    </Info>
-  </Tab>
-</Tabs>
-
----
-
-## Step 5: Build the server
-
-After you have completed flashing your device, you can build the API server. Run the commands below to build.
-
-```bash
-cd server
-npm run build
-docker build -t nolongerevil .
-```
-
----
-
-## Step 6: Starting the API Server
-
-After the build completes, you can start the API Server. Copy the `docker-compose.yml.example` to your own `docker-compose.yml` file. 
-
-```bash
-cp docker-compose.yml.example docker-compose.yml
-```
-
-You then need to edit the environment settings in this new file for your setup.
-
-<Note>
-  If you want to use Home Assistant/MQTT, follow **Step 6** below before starting the server.
-</Note>
-
-Once done, you can start the server with the below command.
+Edit `docker-compose.yml` — set `API_ORIGIN` to your LAN IP, then:
 
 ```bash
 docker compose up -d
 ```
 
-### Check Running Containers
+**Full environment variable reference:**
 
-```bash
-docker ps
-```
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `API_ORIGIN` | ✅ Yes | `http://localhost` | LAN IP:port devices connect to (e.g., `http://192.168.1.50:8000`). **Must be an IP, not a hostname.** |
+| `SERVER_PORT` | Optional | `8000` | Thermostat device API port (inside container) |
+| `CONTROL_PORT` | Optional | `8082` | Dashboard/control API port (inside container) |
+| `REQUIRE_DEVICE_PAIRING` | Optional | `false` | If `true`, require 7-char pairing code before device access |
+| `ENTRY_KEY_TTL_SECONDS` | Optional | `3600` | Entry key validity in seconds |
+| `MQTT_HOST` | Optional | (empty) | MQTT broker IP — enables Home Assistant auto-discovery |
+| `MQTT_PORT` | Optional | `1883` | MQTT broker port |
+| `MQTT_USER` / `MQTT_PASSWORD` | Optional | (empty) | MQTT credentials |
+| `MQTT_TOPIC_PREFIX` | Optional | `nolongerevil` | MQTT topic prefix |
+| `MQTT_DISCOVERY_PREFIX` | Optional | `homeassistant` | HA MQTT discovery prefix |
+| `DEBUG_LOGGING` | Optional | `false` | Set `true` for verbose logs |
+| `DEBUG_LOGS_DIR` | Optional | `./data/debug-logs` | Debug log output directory |
+| `STORE_DEVICE_LOGS` | Optional | (disabled) | Store raw device communication logs to disk |
+| `SQLITE3_DB_PATH` | Optional | `/app/data/database.sqlite` | SQLite database path |
+| `CERT_DIR` | Optional | (disabled) | Path to TLS certificates for HTTPS |
+| `WEATHER_CACHE_TTL_MS` | Optional | `600000` | Weather cache duration in ms |
+| `MAX_SUBSCRIPTIONS_PER_DEVICE` | Optional | `100` | Max long-poll subscriptions per device |
+| `SUSPEND_TIME_MAX` | Optional | `600` | Device sleep before fallback wake (seconds) |
+| `DEFER_DEVICE_WINDOW` | Optional | `15` | Delay before device PUT after local changes (seconds) |
+| `DISABLE_DEFER_WINDOW` | Optional | `60` | Post-push defer disable window (seconds) |
 
-You should see a container image `nolongerevil` running.  
+Full reference: [github.com/codykociemba/NoLongerEvil-SelfHosted](https://github.com/codykociemba/NoLongerEvil-SelfHosted)
 
-### Test API Server
-
-The default `docker-compose` will expose the API Server on port you selected in your `docker-compose.yml` file.  
-You can confirm connectivity with `curl`.
-
-```bash
-curl localhost:80
-```
+Your NLE server is now running. Continue to [Part 2](#part-2:-flash-and-configure-via-gui-installer) below to flash your thermostat.
 
 ---
 
-## Step 6: Home Assistant/MQTT Integration (Optional)
+### Option D — NAS Platforms
 
-If you use Home Assistant, you can integrate No Longer Evil using MQTT for automatic device discovery.
+Most NAS platforms should be supported as long as they can run a Docker container. The steps below cover the most common platforms — if yours isn't listed, refer to Option B (Standalone Docker) as a general guide.
 
-### Configure MQTT Integration
+> **Image:** `ghcr.io/codykociemba/nolongerevil-selfhosted:latest`
 
-Update the following environment variables in your `docker-compose.yml` file:
+<Tabs>
+  <Tab title="Unraid">
+    1. Open the **Docker** tab in Unraid UI
+    2. Click **Add Container**
+    3. Set **Repository** to: `ghcr.io/codykociemba/nolongerevil-selfhosted:latest`
+    4. Add Port Mappings:
+       - `8000` → `8000` (API)
+       - `8082` → `8082` (Control)
+    5. Add Path: Container path `/data` → Host path `/mnt/user/appdata/nolongerevil`
+    6. Add Variable: `API_ORIGIN` = `http://[UNRAID-IP]:8000`
+    7. Click **Apply**
+  </Tab>
+  <Tab title="TrueNAS">
+    **Via Apps (TrueNAS SCALE):**
+    1. Go to **Apps** → **Discover Apps** → search for custom app
+    2. Use the Docker Compose method via Shell — clone `codykociemba/NoLongerEvil-SelfHosted` and run `docker compose up -d` after setting `API_ORIGIN`
 
-- **NEST_DEVICES:**
-This should be the IP address of your Nest thermostat and the device ID. Should be separated with a `:`.
-(If you have more than one device, separate them with a `,`.)
-```yml
-- NEST_DEVICES=192.168.1.20:ABCDEFGHIJKMNOPQ
-```
-- **MQTT_ENABLED:**
-`true` to enable, or `false` to disable.
-```yml
-- MQTT_ENABLED=true
-```
-- **MQTT_SERVER_IP:**
-The IP address of your MQTT server.
-```yml
-- MQTT_SERVER_IP=192.168.1.19
-```
-- **MQTT_SERVER_PORT:**
-The port your MQTT server is listening on.
-```yml
-- MQTT_SERVER_PORT=1883
-```
-- **MQTT_USERNAME/MQTT_PASSWORD:**
-If secure, you can input your MQTT credentials.
-```yml
-- MQTT_USERNAME=
-- MQTT_PASSWORD=
-```
-- **Other MQTT Settings:**
-While not recommended, you can edit the default values for the below environment settings.
-```yml
-- MQTT_CLIENT_ID=nolongerevil-hass
-- MQTT_TOPIC_PREFIX=nest
-- MQTT_DISCOVERY_PREFIX=homeassistant
-```
-- **MQTT_HA_DISCOVERY:**
-Use this to make the device Home Assistant discoverable. `true` to enable, or `false` to disable.
-```yml
-- MQTT_HA_DISCOVERY=false
-```
-Once you start the server after modifying `NEST_DEVICES` and/or `MQTT_*` settings, the 
-server will attempt to initialize your device. You will see in the docker logs where the
-server will try and update the endpoint of your device to the environment setting
-`API_ORIGIN`. Your Nest device must be active (screen on) when this runs for the first time.
-Subsequent start up will check the local SQLite database to see if the device already exists. 
+    **Via Shell:**
+    ```bash
+    docker run -d \
+      -p 8000:8000 \
+      -p 8082:8082 \
+      --name nolongerevil-server \
+      -e API_ORIGIN=http://[TRUENAS-IP]:8000 \
+      -v /mnt/pool/nolongerevil:/data \
+      ghcr.io/codykociemba/nolongerevil-selfhosted:latest
+    ```
+  </Tab>
+  <Tab title="Synology">
+    1. Open **Container Manager** (formerly Docker app)
+    2. Go to **Registry** → search `ghcr.io/codykociemba/nolongerevil-selfhosted`
+    3. Download the image (select `latest`)
+    4. Go to **Container** → **Create**
+    5. Configure:
+       - Ports: `8000:8000`, `8082:8082`
+       - Volume: `/docker/nolongerevil` → `/data`
+       - Environment: `API_ORIGIN=http://[SYNOLOGY-IP]:8000`
+    6. Click **Apply**
+  </Tab>
+  <Tab title="Portainer">
+    1. Go to your Portainer instance → **Containers** → **Add Container**
+    2. **Image:** `ghcr.io/codykociemba/nolongerevil-selfhosted:latest`
+    3. **Port mapping:** `8000:8000`, `8082:8082`
+    4. **Volumes:** bind mount or named volume → `/data`
+    5. **Env:** `API_ORIGIN=http://[HOST-IP]:8000`
+    6. **Deploy the container**
+  </Tab>
+</Tabs>
 
-**Requirements:**
-- Home Assistant must have MQTT broker configured (Mosquitto addon recommended)
-- MQTT broker must be accessible from your No Longer Evil server
-- If using authentication, create a dedicated MQTT user in Home Assistant
+Your NLE server is now running. Continue to [Part 2](#part-2:-flash-and-configure-via-gui-installer) below to flash your thermostat.
+
+---
+
+### Option E — Python Direct
+
+For users who don't have Docker, or developers working on the NLE server codebase.
+
+Requires Python 3.11+.
+
+```bash
+git clone https://github.com/codykociemba/NoLongerEvil-SelfHosted.git
+cd NoLongerEvil-SelfHosted
+python -m venv .venv
+source .venv/bin/activate
+pip install .
+cp .env.example .env
+# Edit .env — set API_ORIGIN to your LAN IP (e.g., API_ORIGIN=http://192.168.1.50:8000)
+nolongerevil-server
+# Or: python -m nolongerevil.main
+```
 
 <Note>
-  Once configured, your Nest thermostats will automatically appear in Home Assistant under MQTT devices with the entity `climate.nest_DEVICE_ID`. They will support climate control, temperature monitoring, and scheduling through Home Assistant.
+  This runs the same Python server that's packaged inside the Docker image. Use this if Docker isn't available, or if you're contributing to the server codebase and want to run it directly during development.
+</Note>
+
+Your NLE server is now running. Continue to [Part 2](#part-2:-flash-and-configure-via-gui-installer) below to flash your thermostat.
+
+---
+
+## Part 2: Flash and Configure via GUI Installer
+
+**Platform requirements — read before downloading:**
+
+<Warning>
+  **Windows is not supported and has no workaround.**
+
+  The Nest thermostat only stays in DFU mode for a few seconds. Windows cannot
+  complete USB driver setup within that window. WSL2 does not help — the USB
+  device passthrough cannot be fast enough. Use macOS or Linux.
+</Warning>
+
+| Platform | Download |
+|---|---|
+| macOS (Intel x64) | [`nolongerevil-macos-x64.zip`](https://github.com/codykociemba/NoLongerEvil-Thermostat/releases/download/v1.0.1/nolongerevil-macos-x64.zip) |
+| macOS (Apple Silicon) | Use x64 via Rosetta 2, or build from source |
+| Linux (x64) | [`nolongerevil-linux-appimage.zip`](https://github.com/codykociemba/NoLongerEvil-Thermostat/releases/download/v1.0.1/nolongerevil-linux-appimage.zip) |
+| Windows | ❌ Not supported |
+
+### Step 1: Enter DFU Mode and Flash
+
+Follow the same DFU procedure as the hosted installation — see [Step 3 of the hosted installation guide](/hosted/installation#step-3-enter-dfu-mode) for the full Gen 1 / Gen 2 instructions.
+
+Once flashing completes you will see this screen:
+
+<Frame>
+  <img src="/images/firmware-installer-screenshots/4-flashed.png" alt="Installation Complete screen" />
+</Frame>
+
+<Note>
+  **Firmware flashed successfully** — The bootloader and kernel have been written to the device. Keep the USB cable connected — the device will now begin booting into the new firmware.
+
+  **If flashing failed mid-way:** Unplug and repeat the back plate sequence, then re-run the installer. A partial flash will not permanently damage the device — the DFU bootloader is always recoverable.
 </Note>
 
 ---
 
-## Step 8: Configure Networking (For Remote Access)
+### Step 2: Wait for Boot
 
-If you want to access your thermostat remotely (outside your local network):
+Keep the device plugged in via USB and wait for it to complete its boot sequence — this may take 3–4 minutes. When fully booted, you should see the default Nest temperature screen.
 
-<Steps>
-  <Step title="Port Forwarding">
-    Configure your router to forward these ports to your server:
-    - **Port 443** - Thermostat Communication API (HTTPS)
-    - **Port 8081** - Control API (HTTP)
-    - **Port 5173** (or 80/443 if using nginx) - Frontend (if self-hosting)
-  </Step>
-
-  <Step title="DNS/DDNS Setup">
-    Set up a domain name or Dynamic DNS (DDNS) service to point to your public IP:
-    - Use a service like DuckDNS, No-IP, or your own domain
-    - Configure it to update automatically if your IP changes
-  </Step>
-
-  <Step title="SSL/TLS Certificates">
-    For secure HTTPS access, set up SSL certificates:
-    - Use Let's Encrypt with certbot
-    - Or use a reverse proxy like nginx with automatic certificate management
-
-    ```bash
-    sudo apt-get install certbot
-    sudo certbot certonly --standalone -d your-domain.com
-    ```
-  </Step>
-</Steps>
+**Do not disconnect or power off the device during this time.**
 
 ---
 
-## 🎉 Success!
+### Step 3: Complete the Wizard
 
-Your self-hosted No Longer Evil infrastructure is now running!
+<Info>
+  **Once the device has booted, the installer wizard takes over automatically.**
 
-**What's Running:**
-- ✅ API Server (Docker container)
-- ✅ Your thermostat is connected to YOUR server
+  Make sure your NLE server is running before proceeding — the wizard will need to reach it to configure the thermostat.
+</Info>
+
+<Frame>
+  <img src="/images/firmware-installer-screenshots/5-hostingselection.png" alt="Hosting Mode selection — choose Self-Hosted" />
+</Frame>
+
+<Note>
+  **Choose hosting mode** — Select **Self-Hosted**. If you haven't started your NLE server yet, go back and complete Part 1 first before continuing.
+</Note>
+
+The installer scans your LAN for a running NLE server. If detected, confirm the address. If not found, enter it manually:
+
+| Deployment | Server address to enter |
+|---|---|
+| Standalone Docker | `http://[YOUR-SERVER-IP]:8000` |
+| HA Add-on | `http://[YOUR-HA-IP]:9543` |
+| Python direct | `http://[YOUR-SERVER-IP]:8000` (or whichever port you configured) |
+
+<Frame>
+  <img src="/images/firmware-installer-screenshots/6b-selfhostingconfig.png" alt="Server Configuration — enter your self-hosted server address" />
+</Frame>
+
+<Note>
+  **Server configuration** — Enter your server address and click **Continue**. If the server was auto-detected on your LAN, it will appear here automatically — just confirm it's correct.
+
+  **If the server isn't detected:** Make sure the server is running (`docker ps` or check your HA add-on), that your computer is on the same network, and that `API_ORIGIN` is set to a LAN IP (not `localhost` or a hostname).
+</Note>
+
+<Frame>
+  <img src="/images/firmware-installer-screenshots/6c-haautodetect.png" alt="Server Configuration — Home Assistant auto-detected" />
+</Frame>
+
+<Note>
+  **Home Assistant auto-detected** — If the installer finds a running NLE add-on on your network, it will show it here. Confirm the address matches your HA machine's IP on port `9543`.
+</Note>
+
+<Frame>
+  <img src="/images/firmware-installer-screenshots/6-sshoption.png" alt="SSH Access configuration screen" />
+</Frame>
+
+<Note>
+  **SSH connection** — The wizard connects to the thermostat over SSH to configure it. The device must still be connected via USB and should have finished booting.
+
+  **If SSH fails:** Make sure the USB cable is still plugged in and the device shows the Nest temperature screen. Unplug and replug the USB cable, wait 30 seconds, and click Retry.
+</Note>
+
+<Accordion title="SSH Password Setup (advanced)" icon="terminal">
+  <Note>
+    If you choose to keep SSH enabled, this screen lets you change the default SSH password from `nolongerevil` to a password of your choice. You can SSH into the device at any time with `ssh root@[THERMOSTAT-IP]`.
+  </Note>
+
+  <Frame>
+    <img src="/images/firmware-installer-screenshots/6a-sshpassword.png" alt="SSH Password fields for custom credentials" />
+  </Frame>
+</Accordion>
+
+<Frame>
+  <img src="/images/firmware-installer-screenshots/7-networkscan.png" alt="Finding Your Nest on the network" />
+</Frame>
+
+<Note>
+  **Finding your Nest on the network** — The wizard scans your local network to locate the thermostat after it connects to WiFi. The device needs to be on the same network as your server.
+
+  **If the Nest isn't found:** Check the WiFi credentials on the Nest device itself and confirm it shows as connected. Alternatively, if you know the thermostat's IP address, you can enter it manually and click **Use**.
+</Note>
+
+<Frame>
+  <img src="/images/firmware-installer-screenshots/8-provisioningcomplete.png" alt="Configuring Device — provisioning in progress" />
+</Frame>
+
+<Note>
+  **Configuring device** — The wizard is writing your self-hosted server URL to the thermostat. Do not unplug or power off the device during this step.
+
+  **If provisioning fails:** Verify your server is still running and reachable, then retry. If it fails repeatedly, see the [Troubleshooting guide](/self-hosted/troubleshooting).
+</Note>
+
+<Frame>
+  <img src="/images/firmware-installer-screenshots/9-setupcomplete.png" alt="Setup Complete — verify the Server URL field shows your self-hosted address" />
+</Frame>
+
+<Note>
+  **Setup complete** — Verify the Server URL shown matches your self-hosted server address. If it shows the No Longer Evil cloud URL instead, the server was not detected correctly — see the [Troubleshooting guide](/self-hosted/troubleshooting).
+</Note>
+
+**After the wizard completes — reboot the thermostat:**
+
+<Note>
+  The thermostat only sends its complete state (temperature, mode, schedule) to the server during a **fresh boot**. After the wizard finishes, reboot the device from the installer or by holding the display for 10 seconds. Without a reboot, the dashboard may show the device as connected but with no data.
+</Note>
 
 ---
 
@@ -364,27 +398,97 @@ Your self-hosted No Longer Evil infrastructure is now running!
 docker ps
 ```
 
-**Stop all containers:**
+**Stop the NLE server:**
 ```bash
-docker stop $(docker ps -q)
+docker stop nolongerevil-server
 ```
 
-**Restart containers:**
+**Restart the NLE server:**
 ```bash
-docker restart $(docker ps -q)
+docker restart nolongerevil-server
 ```
 
 ### View Logs
 
 **API Server logs:**
 ```bash
-docker logs <container-id>
+docker logs nolongerevil-server
 ```
 
 **Follow logs in real-time:**
 ```bash
-docker logs -f <container-id>
+docker logs -f nolongerevil-server
 ```
+
+**Last 50 lines:**
+```bash
+docker logs nolongerevil-server --tail 50
+```
+
+### Update to Latest Version
+
+```bash
+docker pull ghcr.io/codykociemba/nolongerevil-selfhosted:latest
+docker stop nolongerevil-server
+docker rm nolongerevil-server
+# Re-run your original docker run command (data volume is preserved)
+```
+
+Or with Docker Compose:
+```bash
+docker compose pull
+docker compose up -d
+```
+
+### Home Assistant — Web UI
+
+The NLE server includes a built-in web dashboard you can access directly from Home Assistant.
+
+Open the **NoLongerEvil HomeAssistant** add-on in Settings → Add-ons, or click **NLE Thermostats** in the sidebar if you enabled the **Show in sidebar** option.
+
+Then click <span style={{display:'inline-flex', alignItems:'center', backgroundColor:'#009ac7', color:'#fff', fontWeight:'600', fontSize:'0.8rem', height:'38px', padding:'0 16px', borderRadius:'9999px'}}>Open Web UI</span>.
+
+The Web UI lets you:
+- View all connected thermostats
+- Add new thermostats or scan for devices on your network
+- Modify thermostat controls directly — useful if you prefer not to use the Home Assistant interface
+
+---
+
+## Configure Networking (For Remote Access — Optional)
+
+<Note>
+  **This section is only needed if you want to access your thermostat from outside your local network (over the internet).** For standard home LAN use, skip this section — the thermostat connects to your server directly on the local network.
+</Note>
+
+<Accordion title="Remote access setup (port forwarding, DDNS, SSL)" icon="globe">
+  <Steps>
+    <Step title="Port Forwarding">
+      Configure your router to forward these ports to your server:
+      - **Port 8000** - Thermostat Communication API
+      - **Port 8082** - Control API / Dashboard
+    </Step>
+
+    <Step title="DNS/DDNS Setup">
+      Set up a domain name or Dynamic DNS (DDNS) service to point to your public IP:
+      - Use a service like DuckDNS, No-IP, or your own domain
+      - Configure it to update automatically if your IP changes
+    </Step>
+
+    <Step title="SSL/TLS Certificates">
+      For secure HTTPS access, set up SSL certificates:
+      - Use Let's Encrypt with certbot
+      - Or use a reverse proxy like nginx with automatic certificate management
+
+      ```bash
+      sudo apt-get install certbot
+      sudo certbot certonly --standalone -d your-domain.com
+      ```
+
+      Configure the `CERT_DIR` environment variable to point to your certificate directory.
+    </Step>
+  </Steps>
+</Accordion>
 
 ---
 
@@ -398,16 +502,3 @@ docker logs -f <container-id>
     Learn about the API endpoints
   </Card>
 </CardGroup>
-
----
-
-## Credits & Acknowledgments
-
-This project builds upon the excellent work of several security researchers and developers:
-
-- **[grant-h](https://github.com/grant-h) / [ajb142](https://github.com/ajb142)** - [omap_loader](https://github.com/ajb142/omap_loader), the USB bootloader tool used to flash OMAP devices
-- **[exploiteers (GTVHacker)](https://github.com/exploiteers)** - Original research and development of the [Nest DFU attack](https://github.com/exploiteers/NestDFUAttack)
-- **[guyman70718](https://github.com/guyman70718)** - [cuckoo_loader_gen1](https://github.com/guyman70718/cuckoo_loader_gen1) guide and teardown documentation for Gen 1 DFU mode access
-- **[FULU](https://bounties.fulu.org/)** and all bounty backers - For funding the [Nest Learning Thermostat Gen 1/2 bounty](https://bounties.fulu.org/bounties/nest-learning-thermostat-gen-1-2)
-
-Without their groundbreaking research, open-source contributions, and advocacy for device ownership rights, this work would not be possible. Thank you!

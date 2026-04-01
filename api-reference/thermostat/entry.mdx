@@ -103,7 +103,7 @@ Or:
 | `limits` | Object | Device limits per account |
 
 <Tip>
-  **Why all URLs point to the same server**: For simplicity, NoLongerEvil uses a single server for all services. Google's infrastructure uses separate servers for each service.
+  **Why all URLs point to the same server**: For simplicity, No Longer Evil uses a single server for all services. Google's infrastructure uses separate servers for each service.
 </Tip>
 
 ## Example Requests
@@ -194,7 +194,7 @@ When a thermostat first boots or reconnects to WiFi, it calls `/entry` to discov
 ```mermaid
 sequenceDiagram
     participant T as Thermostat
-    participant API as NoLongerEvil API
+    participant API as No Longer Evil API
 
     T->>API: POST /entry (with serial auth)
     API-->>T: service_urls response

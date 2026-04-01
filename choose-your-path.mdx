@@ -37,23 +37,23 @@ No Longer Evil offers two deployment options depending on your technical experti
 The hosted service uses No Longer Evil's managed infrastructure at **nolongerevil.com**. Your thermostat connects to our servers instead of Google's.
 
 <AccordionGroup>
-  <Accordion title="✅ Zero Configuration" icon="magic-wand-sparkles">
+  <Accordion title="Zero Configuration" icon="magic-wand-sparkles">
     No server setup, no database management, no SSL certificates. Just flash the firmware and start using your thermostat.
   </Accordion>
 
-  <Accordion title="✅ Always Up to Date" icon="cloud-arrow-up">
+  <Accordion title="Always Up to Date" icon="cloud-arrow-up">
     Automatic updates to the API server, dashboard, and features. You always get the latest improvements without lifting a finger.
   </Accordion>
 
-  <Accordion title="✅ Web Dashboard" icon="browser">
+  <Accordion title="Web Dashboard" icon="browser">
     Access your thermostat from anywhere via our hosted web dashboard. Control temperature, schedules, and settings from any device.
   </Accordion>
 
-  <Accordion title="✅ Easy Device Management" icon="list-check">
+  <Accordion title="Easy Device Management" icon="list-check">
     Simple entry code system to link multiple thermostats to your account. Perfect for multi-zone setups.
   </Accordion>
 
-  <Accordion title="✅ Novice Friendly" icon="graduation-cap">
+  <Accordion title="Novice Friendly" icon="graduation-cap">
     No technical expertise required. If you can follow step-by-step instructions and plug in a USB cable, you can do this.
   </Accordion>
 </AccordionGroup>
@@ -106,19 +106,19 @@ The hosted service uses No Longer Evil's managed infrastructure at **nolongerevi
 Self-hosting means running your own No Longer Evil infrastructure. Your thermostat connects to **your server**, not ours.
 
 <AccordionGroup>
-  <Accordion title="✅ Complete Data Ownership" icon="database">
+  <Accordion title="Complete Data Ownership" icon="database">
     All thermostat data stays on your servers. You control the database, logs, and every piece of information.
   </Accordion>
 
-  <Accordion title="✅ No External Dependencies" icon="link-slash">
+  <Accordion title="No External Dependencies" icon="link-slash">
     Your thermostat works independently of No Longer Evil's service. Even if we shut down, your setup keeps running forever.
   </Accordion>
 
-  <Accordion title="✅ Full Customization" icon="code">
+  <Accordion title="Full Customization" icon="code">
     Modify the API server, build custom integrations, add features, or tweak behavior to your exact needs.
   </Accordion>
 
-  <Accordion title="✅ Local Network Operation" icon="network-wired">
+  <Accordion title="Local Network Operation" icon="network-wired">
     Run everything on your local network for ultra-low latency and no internet dependency (optional).
   </Accordion>
 
@@ -128,9 +128,9 @@ Self-hosting means running your own No Longer Evil infrastructure. Your thermost
 
 <CardGroup cols={2}>
   <Card title="Time Required" icon="clock">
-    **2-4 hours**
+    **30 minutes – 2 hours**
 
-    Initial setup + troubleshooting
+    Depends on your setup (Docker install, network config)
   </Card>
   <Card title="Technical Level" icon="user-gear">
     **Advanced**
@@ -147,13 +147,12 @@ Self-hosting means running your own No Longer Evil infrastructure. Your thermost
   </Step>
   <Step title="Technical Skills">
     - Command line / terminal navigation
-    - Basic networking knowledge (ports, firewalls, DNS)
+    - Basic networking knowledge (local IPs, port forwarding if remote access is needed)
     - Docker experience (or willingness to learn)
-    - Understanding of environment variables and configuration
   </Step>
-  <Step title="Infrastructure">
-    - Public IP or DDNS service (if accessing remotely)
-    - Port forwarding capability on router (if accessing remotely)
+  <Step title="Infrastructure (for remote access only)">
+    - Public IP or DDNS service (only if accessing from outside your home network)
+    - Port forwarding capability on router (only if accessing remotely)
   </Step>
 </Steps>
 
@@ -161,24 +160,23 @@ Self-hosting means running your own No Longer Evil infrastructure. Your thermost
 
 When self-hosting, you're responsible for running and maintaining:
 
-1. **API Server (Port 443)** - Handles thermostat communication
-2. **Control API (Port 8081)** - Provides control interface
-3. **Database (Convex)** - Stores device state and configuration
-4. **Frontend (Optional)** - Web dashboard (can use hosted version)
-5. **SSL/TLS Certificates** - For secure communication
+1. **API Server (Port 8000)** — Handles thermostat device communication
+2. **Control API / Dashboard (Port 8082)** — Web interface for device management
+3. **MQTT (Optional)** — Publishes climate entities to Home Assistant via MQTT discovery
 
 ### Challenges to Expect
 
 <Warning>
-  **This path requires technical troubleshooting.** You'll need to:
+  **This path requires some technical comfort.** You'll need to:
 
-  - Debug Docker containers and networking issues
-  - Manage SSL certificates and renewals
-  - Configure firewalls and port forwarding
-  - Set up and maintain databases
-  - Handle version upgrades manually
+  - Install and run Docker (or use the Home Assistant add-on)
+  - Set a LAN IP in your server configuration
+  - Keep a machine running 24/7 on your network
+  - Pull updates manually when new versions release
 
-  If you're not comfortable with these tasks, we strongly recommend the hosted service.
+  SSL certificates, firewalls, and databases are **not required** for a standard home LAN setup — these only apply if you're exposing your server to the internet.
+
+  If you're not comfortable with Docker basics, we recommend the hosted service.
 </Warning>
 
 <Card
@@ -188,30 +186,3 @@ When self-hosting, you're responsible for running and maintaining:
 >
   Ready for the challenge? Follow our comprehensive guide to set up your own No Longer Evil infrastructure
 </Card>
-
----
-
-## Next Steps
-
-<CardGroup cols={2}>
-  <Card
-    title="Hosted Service Setup"
-    icon="cloud"
-    href="/hosted/overview"
-    color="#07C983"
-  >
-    **Recommended Path**
-
-    Quick and easy setup for beginners
-  </Card>
-  <Card
-    title="Self-Hosted Setup"
-    icon="server"
-    href="/self-hosted/overview"
-    color="#0D9373"
-  >
-    **Advanced Path**
-
-    Complete control for experienced users
-  </Card>
-</CardGroup>
